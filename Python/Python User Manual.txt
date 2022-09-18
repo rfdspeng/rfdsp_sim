@@ -1,0 +1,17 @@
+References
+https://wiki.python.org/moin/BeginnersGuide
+https://jupyter.org/install
+https://pip.pypa.io/en/stable/getting-started/
+
+
+Python version: py --version
+Pip version: py -m pip --version
+Upgrade pip: py -m pip install --upgrade pip
+Install module from Python Package Index: py -m pip install numpy
+Uninstall module: py -m pip uninstall numpy
+See all installed modules: py -m pip list
+Required modules: numpy, scipy, matplotlib
+
+
+Interactive plots in Spyder: Change the backend from inline to something else
+Tools - Preferences - IPython console -> Graphics -> Graphics backend -> Qt5
