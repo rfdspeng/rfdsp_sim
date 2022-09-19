@@ -9,6 +9,7 @@ pa_model(): Rapp-Saleh model with parameters wrapped in
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 def rapp_saleh_model(cfg,x):
     """
@@ -36,6 +37,26 @@ def rapp_saleh_model(cfg,x):
     env_y = g*env/(1+(g*env/osat)**s)**(1/s)
     ampm = (a*env**2)/(1+b*env**2)
     y = env_y*np.exp(1j*ph)*np.exp(1j*ampm)
+    
+    en_plot = cfg['en_plot'] if 'en_plot' in cfg else 0
+    if en_plot:
+        plt.figure()
+        plt.plot(env,env_y,'.')
+        plt.title('Rapp-Saleh AMAM',{'fontsize':40})
+        plt.xlabel("X (V)",{'fontsize':30})
+        plt.ylabel("Y (V)",{'fontsize':30})
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.grid()
+        
+        plt.figure()
+        plt.plot(env,ampm*180/np.pi,'.')
+        plt.title('Rapp-Saleh AMPM',{'fontsize':40})
+        plt.xlabel("X (V)",{'fontsize':30})
+        plt.ylabel("AMPM (Degrees)",{'fontsize':30})
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.grid()
     
     return y
 

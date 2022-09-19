@@ -34,8 +34,7 @@ if __name__ == '__main__':
     wola = 10
     
     # Sweep waveforms
-    out = {}
-    out['Waveform'] = []
+    out = {'Waveform':[]}
     out['EVM (%)'] = []
     out['SNR (dB)'] = []
     for precode_idx in range(len(en_tprecodes)):
