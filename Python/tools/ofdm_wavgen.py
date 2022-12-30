@@ -12,46 +12,48 @@ import numpy as np
 from scipy import signal
 from scipy import fft
 
-def ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,ncp=0,wola=0,seed=[]):
+def ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,osr=1,ncp=0,wola=0,seed=[]):
     if seed == []:
         rng = np.random.default_rng()
     else:
         rng = np.random.default_rng(seed)
     
-    nrb = bw*5 # max number of resource blocks
-    nfft = 2**math.ceil(math.log2(nrb*12))
+    nrb = round(bw*5*15/scs) # Max number of resource blocks
+    nfft = 2**math.ceil(math.log2(nrb*12)) # Natural FFT size (osr=1)
+    if osr > 1:
+        nfft = nfft*osr
     ncp = round(nfft*ncp/100)
     sym_len = nfft+ncp
-    fs = nfft*scs/1000 # waveform sampling rate
+    fs = nfft*scs/1000 # Waveform sampling rate
     bps = round(math.log2(modorder))
     wola_len = round(nfft*wola/100)
-    wola_len = wola_len + (wola_len % 2) # needs to be even (half outside of symbol, half inside of symbol)
+    wola_len = wola_len + (wola_len % 2) # Needs to be even (half outside of symbol, half inside of symbol)
     b = generate_wola_window(wola_len,sym_len)
     
-    x_standard = np.zeros(nsym*sym_len) + 1j*np.zeros(nsym*sym_len) # no WOLA
-    x = np.zeros(nsym*sym_len+wola_len) + 1j*np.zeros(nsym*sym_len+wola_len) # with WOLA
+    x_standard = np.zeros(nsym*sym_len) + 1j*np.zeros(nsym*sym_len) # No WOLA
+    x = np.zeros(nsym*sym_len+wola_len) + 1j*np.zeros(nsym*sym_len+wola_len) # With WOLA
     for sdx in range(nsym):
-        bitstream = rng.random(bps*num_sc).round() # bits for current symbol
-        tones = modulation_mapper(bitstream,modorder) # convert from bits to modulated tones
-        if en_tprecode: tones = fft.fft(tones) # transform precoding
-        tones_nrb = np.zeros(nrb*12) + 1j*np.zeros(nrb*12) # available tones
-        tones_nrb[start_sc:start_sc+num_sc] = tones # allocated tones
-        tones_all = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tones_nrb, np.zeros(round((nfft-nrb*12)/2)))) # freq-domain zero-padding
+        bitstream = rng.random(bps*num_sc).round() # Bits for current symbol
+        tones = modulation_mapper(bitstream,modorder) # Convert from bits to modulated tones
+        if en_tprecode: tones = fft.fft(tones) # Transform precoding
+        tones_nrb = np.zeros(nrb*12) + 1j*np.zeros(nrb*12) # Available tones
+        tones_nrb[start_sc:start_sc+num_sc] = tones # Allocated tones
+        tones_all = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tones_nrb, np.zeros(round((nfft-nrb*12)/2)))) # Freq-domain zero-padding
         tones_all = np.concatenate((tones_all[round(nfft/2):], tones_all[0:round(nfft/2)])) # FFT shift prior to IFFT
         sym = fft.ifft(tones_all) # OFDM symbol
-        sym_cp = np.concatenate((sym[nfft-ncp:], sym)) # add CP
-        x_standard[sdx*sym_len:(sdx+1)*sym_len] = sym_cp # standard waveform
+        sym_cp = np.concatenate((sym[nfft-ncp:], sym)) # Add CP
+        x_standard[sdx*sym_len:(sdx+1)*sym_len] = sym_cp # Standard waveform
         
         # Apply WOLA
         sym_wola = np.concatenate((sym[round(nfft-ncp-wola_len/2):], sym, sym[0:round(wola_len/2)]))
         sym_wola = np.multiply(sym_wola,b)
-        x[sdx*sym_len:(sdx+1)*sym_len+wola_len] = sym_wola + x[sdx*sym_len:(sdx+1)*sym_len+wola_len] # waveform with WOLA
+        x[sdx*sym_len:(sdx+1)*sym_len+wola_len] = sym_wola + x[sdx*sym_len:(sdx+1)*sym_len+wola_len] # Waveform with WOLA
         
         # Save allocated tone indices for demodulation
         if sdx == 0:
-            tone_idx = np.ones(nrb*12) # 1 = unallocated tones (IBE)
-            tone_idx[start_sc:start_sc+num_sc] = 2 # 2 = allocated tones (EVM, equalizer)
-            tone_idx = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tone_idx, np.zeros(round((nfft-nrb*12)/2)))) # 0 = zero-padded tones
+            tone_idx = np.ones(nrb*12) # 1 = Unallocated tones (IBE)
+            tone_idx[start_sc:start_sc+num_sc] = 2 # 2 = Allocated tones (EVM, equalizer)
+            tone_idx = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tone_idx, np.zeros(round((nfft-nrb*12)/2)))) # 0 = Zero-padded tones
             tone_idx = np.concatenate((tone_idx[round(nfft/2):], tone_idx[0:round(nfft/2)]))
     
     # Output dictionary for demodulation

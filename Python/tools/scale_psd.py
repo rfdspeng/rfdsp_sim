@@ -13,7 +13,7 @@ def scale_psd(p,f,bw,scs,start_sc,num_sc):
     nrb = bw*5
     sigl = -nrb*12*scs/1000/2 + start_sc*scs/1000
     sigh = sigl + (num_sc-1)*scs/1000
-    psig = p[np.logical_and(f >= sigl, f <= sigh)]
+    psig = p[(f >= sigl) & (f <= sigh)]
     psig = sum(psig)/len(psig)
     p = p/psig
     return p
