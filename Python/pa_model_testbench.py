@@ -21,19 +21,34 @@ from ofdm_wavgen import ofdm_wavgen
 from ofdm_evm_calculator import ofdm_evm_calculator
 from calculate_psd import calculate_psd
 from calculate_noise import calculate_noise
+from calculate_aclr import calculate_aclr
 from calculate_compression import calculate_compression
 from power_voltage_conversion import power_voltage_conversion
 from rms import rms
 from scale_psd import scale_psd
 import pa_model
 
-def get_pa_params():
+def get_pa_params(target_comp):
     # Return PA params to target various compression points
+    # PA gain = 30dB, PA output power = 27dBm
     
     pa_gain = 30 # dB
     pa_gain_lin = 10**(pa_gain/20)
     
     pa_params = {'g':pa_gain_lin}
+    pa_params['smoothness'] = 2
+    pa_params['a'] = 1
+    pa_params['b'] = 30
+    
+    if target_comp == 1:
+        pa_params['osat'] = 13
+    elif target_comp == 2:
+        pa_params['osat'] = 10
+    elif target_comp == 3:
+        pa_params['osat'] = 8.5
+    else:
+        pa_params['osat'] = target_comp
+        
     return pa_params
 
 if __name__ == '__main__':
@@ -43,7 +58,7 @@ if __name__ == '__main__':
     en_tprecode = 1; modorder = 4
     clipped_papr = 4.5; mpr = 1
     unclipped_papr = 6.5
-    p_avg = 18 # dBm @ PA output (RF power) for MPR0
+    p_avg = 27 # dBm @ PA output (RF power) for MPR0
     p_avg = p_avg-mpr
     p_peak = p_avg+clipped_papr
     p_avg = p_peak-unclipped_papr
@@ -51,6 +66,7 @@ if __name__ == '__main__':
     pa_gain = 30 # dB
     pa_gain_lin = 10**(pa_gain/20)
     v_rms_in = v_rms/pa_gain_lin
+    target_comp = 999
     
     # Generate waveform
     nsym = 14; bw = 20; scs = 15; num_sc = 1200; start_sc = 600-round(num_sc/2)
@@ -60,21 +76,10 @@ if __name__ == '__main__':
     fs = cfg_evm['fs']
     
     x = x/rms(x)*v_rms_in
-    
-    # Rapp params
-    cfg = {'g':pa_gain_lin}
-    cfg['smoothness'] = 2
-    cfg['osat'] = 10
-    #cfg['osat'] = 25
-    
-    # Saleh params
-    cfg['a'] = 2
-    cfg['b'] = 10
-    #cfg['a'] = 0; cfg['b'] = 0
-    
-    cfg['en_plot'] = 1
-    
+
     # PA model
+    cfg = get_pa_params(target_comp)
+    cfg['en_plot'] = 1
     y = pa_model.rapp_saleh_model(cfg,x)
     #y = pa_model.pa_model(x)
     #x = x/max(abs(x))
@@ -98,25 +103,18 @@ if __name__ == '__main__':
     plt.grid()
     
     # Calculate peak compression
-    cfg_comp = {'en_plot':1}
-    comp,nlse = calculate_compression(x,y,cfg=cfg_comp)
-    print(comp)
-    print(nlse)
+    [comp,nlse] = calculate_compression(x,y,cfg={'en_plot':1})
+    print('Compression (dB): ' + str(comp))
+    print('Forward model NLSE (dB): ' + str(nlse))
     
     # Calculate EVM
     cfg_evm['en_plot'] = 1
     evm = ofdm_evm_calculator(cfg_evm,x_standard,y[round(wola_len/2):])
     snr = round(-20*np.log10(evm/100),2)
-    print(evm)
-    print(snr)
+    print('EVM (%): ' + str(evm))
+    print('SNR (dB): ' + str(snr))
     
     # Calculate ACLR
-    rbw = scs/1000
-    nrb = round(bw*5*15/scs)
-    obw = nrb*12*scs/1000
-    sigl = -obw/2; sigh = obw/2-scs/1000
-    sigf = [sigl,sigh]
-    noisef = [bw-obw/2,bw+obw/2]
-    aclrp = calculate_noise(y,fs,rbw,sigf,noisef,cfg={'en_plot':1})
-    noisef = [-bw-obw/2,-bw+obw/2]
-    aclrm = calculate_noise(y,fs,rbw,sigf,noisef,cfg={'en_plot':1})
+    [aclrm,aclrp] = calculate_aclr(y,fs,bw,scs,en_plot=1)
+    print('ACLR- (dB): ' + str(aclrm))
+    print('ACLR+ (dB): ' + str(aclrp))
