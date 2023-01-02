@@ -1,1 +1,2 @@
+Start grouping functions into modules (instead of one function per module). Also rename functions to be shorter
 Add DPD training code

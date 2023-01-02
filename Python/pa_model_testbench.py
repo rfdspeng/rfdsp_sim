@@ -19,6 +19,7 @@ sys.path.append("models")
 
 from ofdm_wavgen import ofdm_wavgen
 from ofdm_evm_calculator import ofdm_evm_calculator
+from calculate_power import calculate_power
 from calculate_psd import calculate_psd
 from calculate_noise import calculate_noise
 from calculate_aclr import calculate_aclr
@@ -60,18 +61,18 @@ if __name__ == '__main__':
     unclipped_papr = 6.5
     p_avg = 27 # dBm @ PA output (RF power) for MPR0
     p_avg = p_avg-mpr
-    p_peak = p_avg+clipped_papr
-    p_avg = p_peak-unclipped_papr
+    p_peak = p_avg+(clipped_papr+3)
+    p_avg = p_peak-(unclipped_papr+3)
     v_rms = power_voltage_conversion(p_avg,'dBm')
     pa_gain = 30 # dB
     pa_gain_lin = 10**(pa_gain/20)
     v_rms_in = v_rms/pa_gain_lin
-    target_comp = 999
+    target_comp = 3
     
     # Generate waveform
     nsym = 14; bw = 20; scs = 15; num_sc = 1200; start_sc = 600-round(num_sc/2)
     ncp = 7; wola = 1; osr = 4; seed = 1;
-    x,x_standard,cfg_evm = ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,ncp=ncp,wola=wola,osr=osr,seed=seed)
+    [x,x_standard,cfg_evm] = ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,ncp=ncp,wola=wola,osr=osr,seed=seed)
     wola_len = cfg_evm['wola_len']
     fs = cfg_evm['fs']
     
@@ -101,6 +102,10 @@ if __name__ == '__main__':
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.grid()
+    
+    # Calculate power
+    p_pa = calculate_power(y)
+    print('RF power @ PA output (dBm): ' + str(p_pa))
     
     # Calculate peak compression
     [comp,nlse] = calculate_compression(x,y,cfg={'en_plot':1})
