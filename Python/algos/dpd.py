@@ -2,17 +2,18 @@
 """
 Created on Sun Jan  1 08:27:45 2023
 
-Generate kernel matrix for DPD training
-
-ktups is a list of tuples. Each tuple consists of (identifier string, params)
-The identifier string is 'GMP', 'DDR', etc. The params depend on the kernel type.
-
 @author: Ryan Tsai
 """
 
 import numpy as np
 
 def generate_kernel_matrix(x,ktups):
+    """
+    Generate kernel matrix for DPD training
+
+    ktups is a list of tuples. Each tuple consists of (identifier string, params)
+    The identifier string is 'GMP', 'DDR', etc. The params depend on the kernel type.
+    """
     x = x.reshape(x.size,1)
     x_abs = abs(x)
     
