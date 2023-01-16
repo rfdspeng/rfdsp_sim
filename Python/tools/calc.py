@@ -127,7 +127,7 @@ def calculate_noise(x,fs,rbw,sigf,noisef,cfg={}):
     
     return noise_dbc
 
-def calculate_papr(x,p):
+def calculate_papr(x,p=99.99):
     """
     Calculate PAPR of signal x (complex ndarray)
     p = percentile in %. For example, if you wish to calculate 99.99% PAPR, set p = 99.99
@@ -146,9 +146,14 @@ def calculate_power(x,zo=50):
     """
     Calculates the power of complex signal x (power @ RF in dBm)
     """
-    P = 10*np.log10(rms(x)**2/zo/1e-3)
-    P = P-3 # RF is -3dB relative to complex baseband
-    return P
+    
+    # Average power
+    p_avg = 10*np.log10(rms(x)**2/zo/1e-3)
+    p_avg = p_avg-3 # RF is -3dB relative to complex baseband
+    
+    # Peak power
+    p_peak = 10*np.log10(max(abs(x))**2/zo/1e-3)
+    return (p_avg,p_peak)
     
 def calculate_psd(x,fs,rbw,wintype='kaiser'):
     nfft = math.ceil(fs/rbw)
