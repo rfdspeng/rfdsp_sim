@@ -54,6 +54,16 @@ def get_ktups(idx):
                  ('GMP',5,0,0), \
                  ('GMP',7,0,0), \
                  ('GMP',9,0,0)  ]
+    elif idx == 1:
+        ktups = [('GMP',1,0,0), \
+                 ('GMP',2,0,0), \
+                 ('GMP',3,0,0), \
+                 ('GMP',4,0,0), \
+                 ('GMP',5,0,0), \
+                 ('GMP',6,0,0), \
+                 ('GMP',7,0,0), \
+                 ('GMP',8,0,0), \
+                 ('GMP',9,0,0)  ]
     
     
     
@@ -91,77 +101,84 @@ if __name__ == '__main__':
     fs = cfg_evm['fs']
     
     x = x/calc.rms(x)*v_rms_in
+    x_dig = x/max(abs(x))
+    dig_gain = max(abs(x))
 
     # PA model
     cfg = get_pa_params(target_comp)
     cfg['en_plot'] = 1
     y = pa_model.rapp_saleh_model(cfg,x)
+    y_dig = y/max(abs(y))
 
     # Kernel matrix
-    ktups = get_ktups(0)
-    [ykmat,ykstr] = dpd.generate_kernel_matrix(y,ktups)
+    ktups = get_ktups(1)
+    [ykmat,ykstr] = dpd.generate_kernel_matrix(y_dig,ktups)
     
     # Ersatz linear algebra solution
-    c = np.matmul(linalg.pinv(ykmat),x)
-    [xkmat,xkstr] = dpd.generate_kernel_matrix(x,ktups)
-    x_dpd = np.matmul(xkmat,c)
+    c = linalg.pinv(ykmat) @ x_dig
+    [xkmat,xkstr] = dpd.generate_kernel_matrix(x_dig,ktups)
+    x_dpd_dig = np.matmul(xkmat,c)
+    x_dpd = x_dpd_dig*dig_gain
     cfg = get_pa_params(target_comp)
     cfg['en_plot'] = 1
     y_dpd = pa_model.rapp_saleh_model(cfg,x_dpd)
     
     xe = np.matmul(ykmat,c)
-    error = xe-x
+    error = xe-x_dig
     error2 = sum(abs(error)**2)
-    power = sum(abs(x)**2)
+    power = sum(abs(x_dig)**2)
     nlse = 10*np.log10(error2/power)
     print('Reverse model NLSE (dB): ' + str(nlse))
     fig = plt.figure()
-    plt.plot(x.real,xe.real,'.',label='Real Part')
-    plt.plot(x.imag,xe.imag,'.',label='Imag Part')
+    plt.plot(x_dig.real,xe.real,'.',label='Real Part')
+    plt.plot(x_dig.imag,xe.imag,'.',label='Imag Part')
     plt.title('Reverse Model',{'fontsize':40})
-    plt.xlabel("x",{'fontsize':30})
-    plt.ylabel("x estimated from y",{'fontsize':30})
-    plt.legend(loc="lower right",fontsize=20)
+    plt.xlabel('x',{'fontsize':30})
+    plt.ylabel('x estimated from y',{'fontsize':30})
+    plt.legend(loc='lower right',fontsize=20)
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.grid()
     
-    x = x_dpd; y = y_dpd
+    #x = x_dpd; y = y_dpd
     # Plot input and output PSDs
     rbw = scs/1000
-    [px,f] = calc.calculate_psd(x,fs,rbw)
-    [py,_] = calc.calculate_psd(y,fs,rbw)
+    [px,f] = calc.calculate_psd(x_dpd,fs,rbw)
+    [py,_] = calc.calculate_psd(y_dpd,fs,rbw)
     px = calc.scale_psd(px,f,bw,scs,start_sc,num_sc)
     py = calc.scale_psd(py,f,bw,scs,start_sc,num_sc)
     fig = plt.figure()
     plt.plot(f,10*np.log10(px),linewidth=2.5,label='PA Input')
     plt.plot(f,10*np.log10(py),label='PA Output')
     plt.title('PSD',{'fontsize':40})
-    plt.xlabel("Frequency (MHz)",{'fontsize':30})
-    plt.ylabel("PSD (dBm)",{'fontsize':30})
-    plt.legend(loc="lower center",fontsize=20)
+    plt.xlabel('Frequency (MHz)',{'fontsize':30})
+    plt.ylabel('PSD (dBm)',{'fontsize':30})
+    plt.legend(loc='lower center',fontsize=20)
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.grid()
     
     # Calculate power
-    p_pa = calc.calculate_power(y)
-    print('RF power @ PA output (dBm): ' + str(p_pa))
+    [pout_avg,pout_peak] = calc.calculate_power(y)
+    [pout_avg_dpd,pout_peak_dpd] = calc.calculate_power(y_dpd)
+    print('Average RF power (dBm): ' + str(round(pout_avg,2)))
+    print('Peak RF power (dBm): ' + str(round(pout_peak,2)))
+    print('Average RF power with DPD (dBm): ' + str(round(pout_avg_dpd,2)))
+    print('Peak RF power with DPD (dBm): ' + str(round(pout_peak_dpd,2)))
     
     # Calculate peak compression
-    [comp,nlse] = calc.calculate_compression(x,y,cfg={'en_plot':1})
+    [comp,nlse] = calc.calculate_compression(x_dpd,y_dpd,cfg={'en_plot':1})
     print('Compression (dB): ' + str(comp))
     print('Forward model NLSE (dB): ' + str(nlse))
     
     # Calculate EVM
     cfg_evm['en_plot'] = 1
-    evm = ofdm.ofdm_evm_calculator(cfg_evm,x_standard,y[round(wola_len/2):])
+    evm = ofdm.ofdm_evm_calculator(cfg_evm,x_standard,y_dpd[round(wola_len/2):])
     snr = round(-20*np.log10(evm/100),2)
     print('EVM (%): ' + str(evm))
     print('SNR (dB): ' + str(snr))
     
     # Calculate ACLR
-    [aclrm,aclrp] = calc.calculate_aclr(y,fs,bw,scs,en_plot=1)
+    [aclrm,aclrp] = calc.calculate_aclr(y_dpd,fs,bw,scs,en_plot=1)
     print('ACLR- (dB): ' + str(aclrm))
     print('ACLR+ (dB): ' + str(aclrp))
-    

@@ -1,2 +1,4 @@
-Start grouping functions into modules (instead of one function per module). Also rename functions to be shorter
+Understand how numpy.linalg.matrix_rank works
 Add DPD training code
+Rename functions to have shorter names
+Add Mline code - I want to calculate the real powers
