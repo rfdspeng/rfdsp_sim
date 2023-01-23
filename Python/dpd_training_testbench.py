@@ -23,6 +23,7 @@ import ofdm
 import calc
 import pa_model
 import dpd
+import linalg_custom
 
 def get_pa_params(target_comp):
     # Return PA params to target various compression points
@@ -64,6 +65,13 @@ def get_ktups(idx):
                  ('GMP',7,0,0), \
                  ('GMP',8,0,0), \
                  ('GMP',9,0,0)  ]
+        """  
+        ktups = [('GMP',1,0,0), \
+                 ('GMP',2,0,0), \
+                 ('GMP',3,0,0), \
+                 ('GMP',4,0,0), \
+                 ('GMP',5,0,0), ]
+            """
     
     
     
@@ -111,8 +119,11 @@ if __name__ == '__main__':
     y_dig = y/max(abs(y))
 
     # Kernel matrix
-    ktups = get_ktups(1)
+    ktups = get_ktups(0)
     [ykmat,ykstr] = dpd.generate_kernel_matrix(y_dig,ktups)
+    
+    # LU decomposition
+    [L,U,elim_idx] = linalg_custom.lu(ykmat.T.conj() @ ykmat,40)
     
     # Ersatz linear algebra solution
     c = linalg.pinv(ykmat) @ x_dig
