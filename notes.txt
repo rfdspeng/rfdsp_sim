@@ -1,3 +1,4 @@
+For LU decomposition, with pruning, should L be zeroed out in the same way that U is zeroed out?
 Understand how numpy.linalg.matrix_rank works
 Add DPD training code
 Rename functions to have shorter names
