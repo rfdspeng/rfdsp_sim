@@ -14,7 +14,7 @@ def identity_matrix(n):
     Generate nxn identity matrix
     
     """
-    I = np.zeros((n,n))
+    I = np.zeros((n,n)) + 0j*np.zeros((n,n))
     for idx in range(n):
         I[idx,idx] = 1
     
@@ -62,7 +62,10 @@ def lu(A,prune_thr_db):
             E = Ei @ E
     
     L = np.linalg.inv(E) # Write function to invert triangular matrix
+    L[:,elim_idx] = 0
+    L[elim_idx,:] = 0
     return (L,U,np.array(elim_idx))
+
 
 def chol():
     
@@ -84,6 +87,9 @@ def solve_ls(A,b,decomp_option="lu",prune_thr_db=999):
     
     """
     
+    if b.ndim == 1:
+        b = b.reshape((len(b),1))
+    
     if not(len(A.shape) == 2):
         raise Exception("solve_ls: A must be 2-dimensional")
     elif not(len(b.shape) == 2):
@@ -103,12 +109,19 @@ def solve_ls(A,b,decomp_option="lu",prune_thr_db=999):
         [L,U,elim_idx] = lu(AHA,prune_thr_db=prune_thr_db)
         
         # Solve Ly = AHb for y, where y = Ux
-        y = np.zeros((L.shape[0],1))
+        y = np.zeros((L.shape[0],1)) + 0j*np.zeros((L.shape[0],1))
         for idx in range(L.shape[0]):
             if not(idx in elim_idx):
-                y[idx] = (AHb[idx] - L[idx,:]*y.T)/L[idx,idx]
+                y[idx] = (AHb[idx] - (L[idx,:] @ y))/L[idx,idx]
+            else:
+                y[idx] = 0
         
         # Solve Ux = y for x
-        
+        x = np.zeros((L.shape[0],1)) + 0j*np.zeros((L.shape[0],1))
+        for idx in range(U.shape[0]-1,-1,-1):
+            if not(idx in elim_idx):
+                x[idx] = (y[idx] - (U[idx,:] @ x))/U[idx,idx]
+            else:
+                x[idx] = 0
     
-    return 1
+    return x

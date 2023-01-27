@@ -1,4 +1,5 @@
-For LU decomposition, with pruning, should L be zeroed out in the same way that U is zeroed out?
+Pruning in the LU decomposition doesn't seem to work - if I switch the nonlinear orders, the pruning doesn't follow the nonlinear order. But I do remember the order of the kernels matters.
+You can also try Cholesky and see if the pruning is any better
 Understand how numpy.linalg.matrix_rank works
 Add DPD training code
 Rename functions to have shorter names
