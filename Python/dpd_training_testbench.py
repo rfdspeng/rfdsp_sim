@@ -119,11 +119,13 @@ if __name__ == '__main__':
     y_dig = y/max(abs(y))
 
     # Kernel matrix
-    ktups = get_ktups(0)
+    ktups = get_ktups(1)
     [ykmat,ykstr] = dpd.generate_kernel_matrix(y_dig,ktups)
     
     # LU decomposition
-    [L,U,elim_idx] = linalg_custom.lu(ykmat.T.conj() @ ykmat,40)
+    [L,U,elim_idx] = linalg_custom.lu(ykmat.T.conj() @ ykmat,100)
+    
+    c1 = linalg_custom.solve_ls(ykmat,x_dig,decomp_option="lu",prune_thr_db=100)
     
     # Ersatz linear algebra solution
     c = linalg.pinv(ykmat) @ x_dig
