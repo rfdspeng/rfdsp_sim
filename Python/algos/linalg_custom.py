@@ -8,6 +8,7 @@ Custom linear algebra functions
 """
 
 import numpy as np
+from numpy import linalg
 
 def identity_matrix(n):
     """
@@ -19,6 +20,27 @@ def identity_matrix(n):
         I[idx,idx] = 1
     
     return I
+
+def rank(A,tol=None):
+    """
+    Computes the rank of A using SVD, where A is an m x n matrix
+    
+    If tol is None, then default tolerance is used: (largest singular value) * max(m,n) * eps
+    
+    Otherwise, tol is a positive number in dB
+
+    """
+    
+    AHA = A.T.conj() @ A
+    eigvals = linalg.eigvalsh(AHA)
+    svals = np.sqrt(eigvals)
+    if tol == None:
+        thr = max(svals)*max(A.shape)*np.finfo(max(svals)).eps
+    else:
+        thr = max(svals)*10**(-tol/20)
+        
+    rk = sum(svals >= thr)
+    return rk
 
 def lu(A,prune_thr_db):
     """
@@ -124,4 +146,4 @@ def solve_ls(A,b,decomp_option="lu",prune_thr_db=999):
             else:
                 x[idx] = 0
     
-    return x
+    return (x.reshape((len(x))),elim_idx)
