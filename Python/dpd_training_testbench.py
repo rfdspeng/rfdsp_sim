@@ -122,21 +122,23 @@ if __name__ == '__main__':
     ktups = get_ktups(1)
     [ykmat,ykstr] = dpd.generate_kernel_matrix(y_dig,ktups)
     
-    # LU decomposition
-    [L,U,elim_idx] = linalg_custom.lu(ykmat.T.conj() @ ykmat,100)
+    rk = linalg_custom.rank(ykmat,tol=100)
     
-    c1 = linalg_custom.solve_ls(ykmat,x_dig,decomp_option="lu",prune_thr_db=100)
-    
-    # Ersatz linear algebra solution
-    c = linalg.pinv(ykmat) @ x_dig
+    # LS solver
+    #c = linalg.pinv(ykmat) @ x_dig
+    [c,elim_idx] = linalg_custom.solve_ls(ykmat,x_dig,decomp_option="lu",prune_thr_db=60)
+    print('Number of eliminated kernels: ' + str(len(elim_idx)))
+    print('Remaining kernels: ' + str(len(c)-len(elim_idx)))
     [xkmat,xkstr] = dpd.generate_kernel_matrix(x_dig,ktups)
-    x_dpd_dig = np.matmul(xkmat,c)
+    #x_dpd_dig = np.matmul(xkmat,c)
+    x_dpd_dig = xkmat @ c
     x_dpd = x_dpd_dig*dig_gain
     cfg = get_pa_params(target_comp)
     cfg['en_plot'] = 1
     y_dpd = pa_model.rapp_saleh_model(cfg,x_dpd)
     
-    xe = np.matmul(ykmat,c)
+    #xe = np.matmul(ykmat,c)
+    xe = ykmat @ c
     error = xe-x_dig
     error2 = sum(abs(error)**2)
     power = sum(abs(x_dig)**2)
