@@ -13,6 +13,7 @@ import math
 import numpy as np
 from numpy import linalg
 import matplotlib.pyplot as plt
+import pandas as pd
 from IPython import get_ipython
 import sys
 sys.path.append('tools')
@@ -88,6 +89,10 @@ if __name__ == '__main__':
     plt.close('all')
     get_ipython().magic('reset -sf')
     
+    # Simulation options
+    prune_thr_db = 75
+    
+    
     en_tprecode = 1; modorder = 4
     clipped_papr = 4.5; mpr = 1
     unclipped_papr = 6.5
@@ -95,7 +100,7 @@ if __name__ == '__main__':
     p_avg = p_avg-mpr
     p_peak = p_avg+(clipped_papr+3)
     p_avg = p_peak-(unclipped_papr+3)
-    v_rms = calc.power_voltage_conversion(p_avg,'dBm')
+    v_rms = calc.dbm2v(p_avg,'dBm')
     pa_gain = 30 # dB
     pa_gain_lin = 10**(pa_gain/20)
     v_rms_in = v_rms/pa_gain_lin
@@ -114,22 +119,27 @@ if __name__ == '__main__':
 
     # PA model
     cfg = get_pa_params(target_comp)
-    cfg['en_plot'] = 1
+    #cfg['en_plot'] = 1
     y = pa_model.rapp_saleh_model(cfg,x)
     y_dig = y/max(abs(y))
 
     # Kernel matrix
     ktups = get_ktups(1)
-    [ykmat,ykstr] = dpd.generate_kernel_matrix(y_dig,ktups)
-    
-    rk = linalg_custom.rank(ykmat,tol=100)
+    [ykmat,ykstr] = dpd.kgen(y_dig,ktups)
+    rk = linalg_custom.rank(ykmat,tol=prune_thr_db)
+    print('Total num kernels: ' + str(len(ktups)))
+    print('Kernels: ' + str(ykstr))   
+    print('Rank: ' + str(rk) + ', ' + str(prune_thr_db) + 'dB pruning')
     
     # LS solver
     #c = linalg.pinv(ykmat) @ x_dig
-    [c,elim_idx] = linalg_custom.solve_ls(ykmat,x_dig,decomp_option="lu",prune_thr_db=60)
-    print('Number of eliminated kernels: ' + str(len(elim_idx)))
-    print('Remaining kernels: ' + str(len(c)-len(elim_idx)))
-    [xkmat,xkstr] = dpd.generate_kernel_matrix(x_dig,ktups)
+    #[c,elim_idx] = linalg_custom.solve_ls(ykmat,x_dig,decomp_option="lu",prune_thr_db=prune_thr_db)
+    [c,elim_idx] = linalg_custom.solve_ls(ykmat,x_dig,decomp_option="eliminate",prune_thr_db=prune_thr_db)
+    print('Num eliminated kernels, ' + str(prune_thr_db) + 'dB pruning: ' + str(len(elim_idx)))
+    print('Num remaining kernels: ' + str(len(c)-len(elim_idx)))
+    print('Eliminated kernels: ' + str([ykstr[i] for i in elim_idx]))
+    print('Remaining kernels: ' + str([ykstr[i] for i in list(range(len(c))) if i not in elim_idx]))
+    [xkmat,xkstr] = dpd.kgen(x_dig,ktups)
     #x_dpd_dig = np.matmul(xkmat,c)
     x_dpd_dig = xkmat @ c
     x_dpd = x_dpd_dig*dig_gain
@@ -158,8 +168,8 @@ if __name__ == '__main__':
     #x = x_dpd; y = y_dpd
     # Plot input and output PSDs
     rbw = scs/1000
-    [px,f] = calc.calculate_psd(x_dpd,fs,rbw)
-    [py,_] = calc.calculate_psd(y_dpd,fs,rbw)
+    [px,f] = calc.psd(x_dpd,fs,rbw)
+    [py,_] = calc.psd(y_dpd,fs,rbw)
     px = calc.scale_psd(px,f,bw,scs,start_sc,num_sc)
     py = calc.scale_psd(py,f,bw,scs,start_sc,num_sc)
     fig = plt.figure()
@@ -174,15 +184,15 @@ if __name__ == '__main__':
     plt.grid()
     
     # Calculate power
-    [pout_avg,pout_peak] = calc.calculate_power(y)
-    [pout_avg_dpd,pout_peak_dpd] = calc.calculate_power(y_dpd)
+    [pout_avg,pout_peak] = calc.power_dbm(y)
+    [pout_avg_dpd,pout_peak_dpd] = calc.power_dbm(y_dpd)
     print('Average RF power (dBm): ' + str(round(pout_avg,2)))
     print('Peak RF power (dBm): ' + str(round(pout_peak,2)))
     print('Average RF power with DPD (dBm): ' + str(round(pout_avg_dpd,2)))
     print('Peak RF power with DPD (dBm): ' + str(round(pout_peak_dpd,2)))
     
     # Calculate peak compression
-    [comp,nlse] = calc.calculate_compression(x_dpd,y_dpd,cfg={'en_plot':1})
+    [comp,nlse] = calc.comp_db(x_dpd,y_dpd,cfg={'en_plot':1})
     print('Compression (dB): ' + str(comp))
     print('Forward model NLSE (dB): ' + str(nlse))
     
@@ -194,6 +204,6 @@ if __name__ == '__main__':
     print('SNR (dB): ' + str(snr))
     
     # Calculate ACLR
-    [aclrm,aclrp] = calc.calculate_aclr(y_dpd,fs,bw,scs,en_plot=1)
+    [aclrm,aclrp] = calc.aclr(y_dpd,fs,bw,scs,en_plot=1)
     print('ACLR- (dB): ' + str(aclrm))
     print('ACLR+ (dB): ' + str(aclrp))

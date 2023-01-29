@@ -42,22 +42,24 @@ def rank(A,tol=None):
     rk = sum(svals >= thr)
     return rk
 
-def lu(A,prune_thr_db):
+def eliminate(A,prune_thr_db=999):
     """
     A is a square matrix
     prune_thr_db is the pruning threshold in dB (a positive value)
     When a pivot is less than (first pivot)*10^(-prune_thr_db/20), zero out the row and column and move to the next one
     
-    Returns L, U, and a vector that contains the indices (starting from 0) of the non-pruned rows and columns
+    Returns E, U, and a vector that contains the indices (starting from 0) of the pruned rows and columns
+    E is the elimination matrix
+    U is the upper triangular matrix after elimination (U = EA)
     
     """
     
     if not(len(A.shape) == 2):
-        raise Exception("lu: A must be 2-dimensional")
+        raise Exception("eliminate: A must be 2-dimensional")
     elif not(A.shape[0] == A.shape[1]):
-        raise Exception("lu: A must be a square matrix")
+        raise Exception("eliminate: A must be a square matrix")
     elif prune_thr_db < 0:
-        raise Exception("lu: prune_thr_db must be positive")
+        raise Exception("eliminate: prune_thr_db must be positive")
         
     ndim = A.shape[0] # Matrix size
     E = identity_matrix(ndim)
@@ -83,14 +85,43 @@ def lu(A,prune_thr_db):
                 
             E = Ei @ E
     
+    E[:,elim_idx] = 0
+    E[elim_idx,:] = 0       
+    return (E,U,elim_idx)
+
+def lu(A,prune_thr_db=999):
+    """
+    A is a square matrix
+    prune_thr_db is the pruning threshold in dB (a positive value)
+    When a pivot is less than (first pivot)*10^(-prune_thr_db/20), zero out the row and column and move to the next one
+    
+    Returns L, U, and a vector that contains the indices (starting from 0) of the pruned rows and columns
+    
+    """
+    
+    if not(len(A.shape) == 2):
+        raise Exception("lu: A must be 2-dimensional")
+    elif not(A.shape[0] == A.shape[1]):
+        raise Exception("lu: A must be a square matrix")
+    elif prune_thr_db < 0:
+        raise Exception("lu: prune_thr_db must be positive")
+        
+    [E,U,elim_idx] = eliminate(A,prune_thr_db=999)
+    
     L = np.linalg.inv(E) # Write function to invert triangular matrix
     L[:,elim_idx] = 0
     L[elim_idx,:] = 0
-    return (L,U,np.array(elim_idx))
+    return (L,U,elim_idx)
 
-
-def chol():
+def chol(A,prune_thr_db=999):
+    """
+    A is a Hermitian matrix
+    prune_thr_db is the pruning threshold in dB (a positive value)
+    When a pivot is less than (first pivot)*10^(-prune_thr_db/20), zero out the row and column and move to the next one
     
+    Returns L and a vector that contains the indices (starting from 0) of the pruned rows and columns
+    
+    """
     
     
     
@@ -101,7 +132,7 @@ def chol():
     
     return 1
 
-def solve_ls(A,b,decomp_option="lu",prune_thr_db=999):
+def solve_ls(A,b,decomp_option="eliminate",prune_thr_db=999):
     """
     Solve Ax = b
     
@@ -120,13 +151,28 @@ def solve_ls(A,b,decomp_option="lu",prune_thr_db=999):
         raise Exception("solve_ls: b must have 1 column")
     elif not(A.shape[0] == b.shape[0]):
         raise Exception("solve_ls: A and b must have the same number of rows")
-        
-    if decomp_option == "lu":
-        # Ax = b
+    
+    # Ax = b
+    # AHAx = AHb
+    AHA = A.T.conj() @ A
+    AHb = A.T.conj() @ b
+    
+    if decomp_option == "eliminate":
         # AHAx = AHb
-        AHA = A.T.conj() @ A
-        AHb = A.T.conj() @ b
+        # EAHAx = EAHb -> EAHA = U
+        # Ux = EAHb
+        [E,U,elim_idx] = eliminate(AHA,prune_thr_db=prune_thr_db)
+        EAHb = E @ AHb
         
+        # Solve Ux = EAHb for x
+        x = np.zeros((U.shape[0],1)) + 0j*np.zeros((U.shape[0],1))
+        for idx in range(U.shape[0]-1,-1,-1):
+            if not(idx in elim_idx):
+                x[idx] = (EAHb[idx] - (U[idx,:] @ x))/U[idx,idx]
+            else:
+                x[idx] = 0
+        
+    elif decomp_option == "lu":
         # LUx = AHb
         [L,U,elim_idx] = lu(AHA,prune_thr_db=prune_thr_db)
         

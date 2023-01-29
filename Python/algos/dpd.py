@@ -7,7 +7,7 @@ Created on Sun Jan  1 08:27:45 2023
 
 import numpy as np
 
-def generate_kernel_matrix(x,ktups):
+def kgen(x,ktups):
     """
     Generate kernel matrix for DPD training
 

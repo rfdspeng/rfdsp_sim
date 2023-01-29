@@ -12,20 +12,20 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import fft
 
-def calculate_aclr(x,fs,bw,scs,en_plot=0):
+def aclr(x,fs,bw,scs,en_plot=0):
     rbw = scs/1000
     nrb = round(bw*5*15/scs)
     obw = nrb*12*scs/1000
     sigl = -obw/2; sigh = obw/2-scs/1000
     sigf = [sigl,sigh]
     noisef = [bw-obw/2,bw+obw/2]
-    aclrp = calculate_noise(x,fs,rbw,sigf,noisef,cfg={'en_plot':en_plot,'title':"ACLR+"})
+    aclrp = noise_dbc(x,fs,rbw,sigf,noisef,cfg={'en_plot':en_plot,'title':"ACLR+"})
     noisef = [-bw-obw/2,-bw+obw/2]
-    aclrm = calculate_noise(x,fs,rbw,sigf,noisef,cfg={'en_plot':en_plot,'title':"ACLR-"})
+    aclrm = noise_dbc(x,fs,rbw,sigf,noisef,cfg={'en_plot':en_plot,'title':"ACLR-"})
         
     return (aclrm,aclrp)
 
-def calculate_compression(x,y,cfg={}):
+def comp_db(x,y,cfg={}):
     """
     Calculate compression by using polynomial curve fitting
 
@@ -94,9 +94,9 @@ def calculate_compression(x,y,cfg={}):
         
     return (comp,nlse)
 
-def calculate_noise(x,fs,rbw,sigf,noisef,cfg={}):
+def noise_dbc(x,fs,rbw,sigf,noisef,cfg={}):
     wintype = cfg['wintype'] if 'wintype' in cfg else 'kaiser'
-    [p,f] = calculate_psd(x,fs,rbw,wintype)
+    [p,f] = psd(x,fs,rbw,wintype)
     
     sigfl = sigf[0]; sigfh = sigf[1]
     psig = p[(f >= sigfl) & (f <= sigfh)]
@@ -127,7 +127,7 @@ def calculate_noise(x,fs,rbw,sigf,noisef,cfg={}):
     
     return noise_dbc
 
-def calculate_papr(x,p=99.99):
+def papr(x,p=99.99):
     """
     Calculate PAPR of signal x (complex ndarray)
     p = percentile in %. For example, if you wish to calculate 99.99% PAPR, set p = 99.99
@@ -142,7 +142,7 @@ def calculate_papr(x,p=99.99):
     
     return papr
 
-def calculate_power(x,zo=50):
+def power_dbm(x,zo=50):
     """
     Calculates the power of complex signal x (power @ RF in dBm)
     """
@@ -155,7 +155,7 @@ def calculate_power(x,zo=50):
     p_peak = 10*np.log10(max(abs(x))**2/zo/1e-3)
     return (p_avg,p_peak)
     
-def calculate_psd(x,fs,rbw,wintype='kaiser'):
+def psd(x,fs,rbw,wintype='kaiser'):
     nfft = math.ceil(fs/rbw)
     
     if wintype == 'kaiser':
@@ -171,7 +171,7 @@ def calculate_psd(x,fs,rbw,wintype='kaiser'):
     p = fft.fftshift(p)
     return (p,f)
 
-def power_voltage_conversion(x,unit,zo=50):
+def dbm2v(x,unit,zo=50):
     """
     Converts dBm to V and vice versa
 
