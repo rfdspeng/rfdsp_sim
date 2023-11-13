@@ -3,7 +3,7 @@ https://wiki.python.org/moin/BeginnersGuide
 https://jupyter.org/install
 https://pip.pypa.io/en/stable/getting-started/
 
-
+Use command line or powershell
 Python version: py --version
 Pip version: py -m pip --version
 Upgrade pip: py -m pip install --upgrade pip
