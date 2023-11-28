@@ -14,8 +14,7 @@ from scipy import fft
 import matplotlib.pyplot as plt
 from IPython import get_ipython
 import sys
-sys.path.append("tools")
-sys.path.append("models")
+sys.path.append("functions")
 
 if __name__ == '__main__':
     plt.close('all')
