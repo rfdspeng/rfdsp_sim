@@ -165,8 +165,10 @@ def psd(x,fs,rbw,wintype='kaiser'):
     elif wintype == 'hann':
         taps = signal.windows.hann(nfft)
         
+    #f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
+    #                   detrend='constant',return_onesided=False,scaling='spectrum')
     f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
-                       detrend='constant',return_onesided=False,scaling='spectrum')
+                       detrend=False,return_onesided=False,scaling='spectrum')
     f = fft.fftshift(f)
     p = fft.fftshift(p)
     return (p,f)
