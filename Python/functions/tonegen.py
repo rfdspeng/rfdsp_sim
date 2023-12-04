@@ -44,28 +44,5 @@ def tonegen(nsamp,fs,fc,cossin='cos',theta0=0):
         x = np.sin(wc*n + theta0)
     elif cossin == 'exp':
         x = np.exp(1j*(wc*n + theta0))
-    
-    #x = x-np.mean(x)
-    
-    #x = x+1+1j
-    
-    
-    if cossin == 'cos':
-        plt.figure()
-        plt.plot(x)
-    elif cossin == 'sin':
-        plt.figure()
-        plt.plot(x)
-    elif cossin == 'exp':
-        plt.figure()
-        plt.plot(np.real(x))
-        plt.plot(np.imag(x))
-    
-    x_rms = calc.rms(x)
-    x_mean = np.mean(x)
-    print(x_rms)
-    print(x_mean)
-    print(20*np.log10(x_rms/abs(x_mean)))
-    
 
     return x
