@@ -96,7 +96,10 @@ if __name__ == '__main__':
     
     # Downconvert with LO IQ mismatch
     common_phase = np.random.rand()*360
-    rx_bb_iqmm_raw = trx.downconvert(tx_rf,fs,fc,common_phase=common_phase,lo_phase_mismatch=3,lo_gain_mismatch=0.05)
+    #common_phase = 0
+    lo_phase_mismatch = 2
+    lo_gain_mismatch = 0.1
+    rx_bb_iqmm_raw = trx.downconvert(tx_rf,fs,fc,common_phase=common_phase,lo_phase_mismatch=lo_phase_mismatch,lo_gain_mismatch=lo_gain_mismatch)
     
     # Filter 2fc component
     rx_bb_iqmm = signal.lfilter(b,1,rx_bb_iqmm_raw)
@@ -119,17 +122,61 @@ if __name__ == '__main__':
     plt.grid()
     
     # Estimate IQ mismatch
-    tone_pfbb = tonegen.tonegen(2**16,fs,fbb,cossin='exp') # Generate tone at +fbb
-    tone_nfbb = tonegen.tonegen(2**16,fs,-fbb,cossin='exp') # Generate tone at -fbb
+    spdft_freq = round(fbb/(fs/len(rx_bb_iqmm)))*(fs/len(rx_bb_iqmm))
+    tone_pfbb = tonegen.tonegen(2**16,fs,spdft_freq,cossin='exp') # Generate tone at +fbb
+    tone_nfbb = tonegen.tonegen(2**16,fs,-spdft_freq,cossin='exp') # Generate tone at -fbb
+    plt.figure()
+    [p,f] = calc.psd(tone_pfbb,fs,fs/2048)
+    plt.plot(f,10*np.log10(p))
+    [p,f] = calc.psd(tone_nfbb,fs,fs/2048)
+    plt.plot(f,10*np.log10(p))
     rsb = np.mean(tone_pfbb*rx_bb_iqmm) # Correlate Rx signal with +fbb tone to get RSB information
     sig = np.mean(tone_nfbb*rx_bb_iqmm) # Correlate Rx signal with -fbb tone to get signal information
-    rsb_angle = np.angle(rsb)
-    rsb_abs = abs(rsb)
     
-    sig1 = sig*np.exp(1j*rsb_angle)
-    sig2 = sig1/np.real(sig1)
-    theta = np.imag(sig2)*-2
-    sig1_abs = abs(sig1)
-    r = sig1_abs/np.sqrt(1+theta**2/4)
-    ep = rsb_abs*2/r
+    theoretical_rsb_dbc = -10*np.log10((lo_gain_mismatch**2+(lo_phase_mismatch*np.pi/180)**2)/4)
+    print('Theoretical RSB (dBc) = ' + str(theoretical_rsb_dbc))
     
+    est_rsb_dbc = 20*np.log10(abs(sig)/abs(rsb))
+    print('Estimated RSB (dBc) = ' + str(est_rsb_dbc))
+    
+    r = np.abs(sig)
+    theta0 = np.angle(sig)
+    
+    rsb_processed = rsb*np.exp(1j*theta0)/r
+    ep = np.real(rsb_processed)*2
+    theta = np.imag(rsb_processed)*2
+    
+    print('r = ' + str(r))
+    print('theta (deg) = ' + str(theta*180/np.pi))
+    print('epsilon = ' + str(ep))
+    
+    # Compensate IQ mismatch
+    i_mm = np.real(rx_bb_iqmm)
+    q_mm = np.imag(rx_bb_iqmm)
+    i_mm_comp = i_mm/(1+ep/2)/np.cos(theta/2) - q_mm*np.tan(theta/2)
+    q_mm_comp = q_mm/(1-ep/2)/np.cos(theta/2) - i_mm*np.tan(theta/2)
+    rx_bb_iqmm_comp = i_mm_comp + 1j*q_mm_comp
+    
+    rsb_comp = np.mean(tone_pfbb*rx_bb_iqmm_comp) # Correlate Rx signal with +fbb tone to get RSB information
+    sig_comp = np.mean(tone_nfbb*rx_bb_iqmm_comp) # Correlate Rx signal with -fbb tone to get signal information
+    est_rsb_comp_dbc = 20*np.log10(abs(sig_comp)/abs(rsb_comp))
+    print('Estimated RSB after compensation (dBc) = ' + str(est_rsb_comp_dbc))
+    
+    plt.figure()
+    [p,f] = calc.psd(tx_bb,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='blue',linewidth=10,label='Tx BB')
+    [p,f] = calc.psd(tx_rf,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='purple',label='Tx RF')
+    [p,f] = calc.psd(rx_bb_iqmm,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='orange',linewidth=5,label='Rx BB w/LO IQ Mismatch')
+    [p,f] = calc.psd(rx_bb_iqmm_comp,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),label='Rx BB w/LO IQ Mismatch + Compensation')
+    
+    plt.title("Rx LO IQ Mismatch",{'fontsize':40})
+    plt.xlabel("Frequency (MHz)",{'fontsize':30})
+    plt.ylabel("PSD (dB)",{'fontsize':30})
+    plt.legend(loc="upper right",fontsize=20)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+    plt.autoscale(enable=True,axis='both',tight=True)
+    plt.grid()
