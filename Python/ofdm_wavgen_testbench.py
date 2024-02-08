@@ -16,9 +16,8 @@ import sys
 sys.path.append("tools")
 sys.path.append("models")
 
-from ofdm_wavgen import ofdm_wavgen
-from ofdm_evm_calculator import ofdm_evm_calculator
-from calculate_psd import calculate_psd
+import ofdm
+import calc
 
 if __name__ == '__main__':
     plt.close('all')
@@ -45,7 +44,7 @@ if __name__ == '__main__':
     
             # Generate waveform
             nsym = 14; bw = 20; scs = 15; num_sc = 1200; start_sc = 600-round(num_sc/2); ncp = 7;
-            x,x_standard,cfg_evm = ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,ncp,wola)
+            x,x_standard,cfg_evm = ofdm.ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,ncp,wola)
             
             wola_len = cfg_evm['wola_len']
             fs = cfg_evm['fs']
@@ -60,8 +59,8 @@ if __name__ == '__main__':
             # Plot PSDs
             if en_psd_plot:
                 rbw = scs/1000/2**2
-                p,f = calculate_psd(x,fs,rbw)
-                ps,f = calculate_psd(x_standard,fs,rbw)
+                p,f = calc.psd(x,fs,rbw)
+                ps,f = calc.psd(x_standard,fs,rbw)
                 fig = plt.figure()
                 plt.plot(f,10*np.log10(ps))
                 plt.plot(f,10*np.log10(p))
@@ -76,7 +75,7 @@ if __name__ == '__main__':
             # EVM
             if en_const_plot:
                 cfg_evm['en_plot'] = 1
-            evm = ofdm_evm_calculator(cfg_evm,x_standard,x[round(wola_len/2):])
+            evm = ofdm.ofdm_evm_calculator(cfg_evm,x_standard,x[round(wola_len/2):])
             snr = round(-20*np.log10(evm/100),2)
             
             wavstr = 'DFT-s-OFDM ' if en_tprecode == 1 else 'CP-OFDM '
