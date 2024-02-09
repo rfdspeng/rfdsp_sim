@@ -29,8 +29,10 @@ if __name__ == '__main__':
     
     """
     
-    rbw = 15e3
+    siglen = 2**16
     fs = 307.2e6
+    
+    rbw = fs/siglen
     
     # Low limit for integration
     f1 = rbw

@@ -27,21 +27,24 @@ if __name__ == '__main__':
     
     wavtype = 'tones' # 'tones' or 'ofdm'
     
-    
+    pin = 0 # dBm @ RF. For tones, this is power of one tone.
+    piip2 = 20 # dBm @ RF
+    piip3 = 20 # dBm @ RF
     
     
     fc = 61.44
-        
-    if wavtype == 'tones':
-        # Generate real baseband tone at fbb and upconvert to fc
+    
+    
+    # Generate waveforms
+    if wavtype == 'tones': # Generate real baseband tone at fbb and upconvert to fc
         fs = 307.2
         fbb = 3.84
         tx_bb = tonegen.tonegen(2**16,fs,fbb)
-        tx_bb = tx_bb*2 # Play with signal level
+        r = math.sqrt(2*50*1e-3)*10**(pin/20) # RF tone amplitude
+        tx_bb = tx_bb*r*2
         tx_rf = trx.upconvert(tx_bb,fs,fc)
         p_avg,p_pk = calc.power_dbm(tx_bb)
-    elif wavtype == 'ofdm':  
-        # Generate OFDM baseband waveform and upconvert to fc
+    elif wavtype == 'ofdm': # Generate OFDM baseband waveform and upconvert to fc
         nsym = 14; bw = 5; scs = 15; num_sc = 300; start_sc = 0; ncp = 7;
         modorder = 4; en_tprecode = 0; wola = 10;
         x,x_standard,cfg_evm = ofdm.ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,osr=40,ncp=ncp,wola=wola)
@@ -52,12 +55,7 @@ if __name__ == '__main__':
         p_avg,p_pk = calc.power_dbm(tx_bb)
         tx_rf = trx.upconvert(tx_bb,fs,fc)
     
-    # Nonlinear model specs
-    piip2 = 40 # dBm @ RF
-    piip3 = 30 # dBm @ RF
-    
-    #aiip2 = math.sqrt(2)*10**(piip2/20)
-    #aiip3 = math.sqrt(2)*10**(piip3/20)
+    # Nonlinear intercepts
     aiip2 = math.sqrt(2*50*1e-3)*10**(piip2/20)
     aiip3 = math.sqrt(2*50*1e-3)*10**(piip3/20)
 
@@ -107,13 +105,15 @@ if __name__ == '__main__':
         f_imd = fbb*2
         tone_sig = tonegen.tonegen(2**16,fs,f_sig,cossin='exp') # Generate tone at f_sig
         tone_imd = tonegen.tonegen(2**16,fs,f_imd,cossin='exp') # Generate tone at f_imd
-        v_sig = np.mean(rx_rf*tone_sig)
-        v_imd = np.mean(rx_rf*tone_imd)
+        v_sig = 2*np.mean(rx_rf*tone_sig)
+        v_imd = 2*np.mean(rx_rf*tone_imd)
         
-        sig_dbm = calc.dbm2v(abs(v_sig),'V')
-        imd_dbm = calc.dbm2v(abs(v_imd),'V')
+        #sig_dbm = calc.dbm2v(abs(v_sig),'V')
+        sig_dbm = 10*np.log10(abs(v_sig)**2/2/50/1e-3)
+        #imd_dbm = calc.dbm2v(abs(v_imd),'V')
+        imd_dbm = 10*np.log10(abs(v_imd)**2/2/50/1e-3)
         imd_dbc = imd_dbm - sig_dbm
-        imd_dbc_calc = sig_dbm + 6 - piip2
+        imd_dbc_calc = pin - piip2
         #"""
         """
         f_sig = fbb
@@ -150,13 +150,15 @@ if __name__ == '__main__':
         f_imd = fc-3*fbb
         tone_sig = tonegen.tonegen(2**16,fs,f_sig,cossin='exp') # Generate tone at f_sig
         tone_imd = tonegen.tonegen(2**16,fs,f_imd,cossin='exp') # Generate tone at f_imd
-        v_sig = np.mean(rx_rf*tone_sig)
-        v_imd = np.mean(rx_rf*tone_imd)
+        v_sig = 2*np.mean(rx_rf*tone_sig) # Multiply by 2 because SPDFT
+        v_imd = 2*np.mean(rx_rf*tone_imd)
         
-        sig_dbm = calc.dbm2v(abs(v_sig),'V')
-        imd_dbm = calc.dbm2v(abs(v_imd),'V')
+        #sig_dbm = calc.dbm2v(abs(v_sig),'V')
+        sig_dbm = 10*np.log10(abs(v_sig)**2/2/50/1e-3)
+        #imd_dbm = calc.dbm2v(abs(v_imd),'V')
+        imd_dbm = 10*np.log10(abs(v_imd)**2/2/50/1e-3)
         imd_dbc = imd_dbm - sig_dbm
-        imd_dbc_calc = 2*sig_dbm - 2*piip3
+        imd_dbc_calc = 2*pin - 2*piip3
     
     # Print sim outputs for IM2
     if wavtype == 'tones':
@@ -186,7 +188,7 @@ if __name__ == '__main__':
     plt.yticks(fontsize=20)
     plt.autoscale(enable=True,axis='both',tight=True)
     plt.xlim((-5*fbb,+5*fbb))
-    plt.ylim(bottom=-50)
+    plt.ylim(bottom=-100)
     plt.grid()
     
     plt.figure()
@@ -207,5 +209,5 @@ if __name__ == '__main__':
     plt.yticks(fontsize=20)
     plt.autoscale(enable=True,axis='both',tight=True)
     plt.xlim((-fc-5*fbb,+fc+5*fbb))
-    plt.ylim(bottom=-50)
+    plt.ylim(bottom=-100)
     plt.grid()
