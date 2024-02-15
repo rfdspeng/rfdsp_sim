@@ -149,7 +149,7 @@ def power_dbm(x,zo=50):
     
     # Average power
     p_avg = 10*np.log10(rms(x)**2/zo/1e-3)
-    p_avg = p_avg-3 # RF is -3dB relative to complex baseband
+    p_avg = p_avg-10*np.log10(2) # RF is -3dB relative to complex baseband
     
     # Peak power
     p_peak = 10*np.log10(max(abs(x))**2/zo/1e-3)
@@ -180,15 +180,22 @@ def dbm2v(x,unit,zo=50):
     Assumes dBm is @ RF (-3dB relative to complex baseband model)
 
     x is the value, zo is characteristic impedance
+    
+    
+    xrf = r*cos(wt + phi)
+    xbb = r*exp(1j*phi)
+    
+    
+    
     """
 
     if unit == 'dBm':
-        x = x+3 # Complex baseband is +3dB relative to RF
+        x = x+10*np.log10(2) # Complex baseband is +3dB relative to RF
         V = math.sqrt(10**(x/10)*zo*1e-3)
         return V
     elif unit == 'V':
         P = 10*np.log10(x**2/zo/1e-3)
-        P = P-3 # RF is -3dB relative to complex baseband
+        P = P-10*np.log10(2) # RF is -3dB relative to complex baseband
         return P
     
 def rms(x):

@@ -26,6 +26,7 @@ if __name__ == '__main__':
     
     
     wavtype = 'tones' # 'tones' or 'ofdm'
+    #wavtype = 'ofdm'
     
     pin = 0 # dBm @ RF. For tones, this is power of one tone.
     piip2 = 20 # dBm @ RF
@@ -66,17 +67,33 @@ if __name__ == '__main__':
     aiip2 = math.sqrt(2*50*1e-3)*10**(piip2/20)
     aiip3 = math.sqrt(2*50*1e-3)*10**(piip3/20)
     
-    #Apply RF nonlinear model
+    a1 = 1
+    
+    # Apply RF nonlinear model
+    rx_rf = a1*tx_rf + (a1/aiip2)*tx_rf**2 + (-4/3*a1/aiip3**2)*tx_rf**3
+    
+    # Apply baseband nonlinear model
+    rx_bb = a1*(tx_bb_p + tx_bb_m) + (a1/aiip2)*(tx_bb_p**2 + tx_bb_m**2) + (-a1/aiip3**2)*(tx_bb_p**3 + tx_bb_m**3)
+    
+    """
+    # Apply RF nonlinear model
     a1 = 1
     a2 = a1/aiip2
     a3 = -4/3*a1/aiip3**2
     rx_rf = a1*tx_rf + a2*tx_rf**2 + a3*tx_rf**3
     
     # Apply baseband nonlinear model
-    a1 = 1
-    a2 = 2*a1/aiip2
-    a3 = -4/3*a1/aiip3**2
-    rx_bb = a1*(tx_bb_m + tx_bb_p) + a2/2*(tx_bb_m**2 + tx_bb_p**2) + 3/4*a3*(tx_bb_m**3 + tx_bb_p**3)
+    if wavtype == 'tones':
+        a1 = 1
+        a2 = 2*a1/aiip2
+        a3 = -4/3*a1/aiip3**2
+        rx_bb = a1*(tx_bb_m + tx_bb_p) + a2/2*(tx_bb_m**2 + tx_bb_p**2) + 3/4*a3*(tx_bb_m**3 + tx_bb_p**3)
+    elif wavtype == 'ofdm':
+        a1 = 1
+        a2 = a1/aiip2
+        a3 = -4/3*a1/aiip3**2
+        rx_bb = a1*tx_bb + a2/2*abs(tx_bb)**2 + 3/4*a3*abs(tx_bb)**2*tx_bb
+    """
     
     # Isolate IM2 (RF model only)
     passband = fbb*5/(fs/2)
@@ -226,7 +243,10 @@ if __name__ == '__main__':
 
     # Plots    
     plt.figure()
-    [p,f] = calc.psd(tx_bb_m+tx_bb_p,fs,fs/2048)
+    if wavtype == 'tones':
+        [p,f] = calc.psd(tx_bb_m+tx_bb_p,fs,fs/2048)
+    elif wavtype == 'ofdm':
+        [p,f] = calc.psd(tx_bb,fs,fs/2048)
     plt.plot(f,10*np.log10(p),color='blue',linewidth=5,label='Tx BB')
     [p,f] = calc.psd(rx_bb,fs,fs/2048)
     plt.plot(f,10*np.log10(p),color='orange',label='Rx BB (Post-NL)')
