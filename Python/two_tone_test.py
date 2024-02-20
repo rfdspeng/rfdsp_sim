@@ -37,24 +37,28 @@ if __name__ == '__main__':
     
     
     # Generate waveforms
-    if wavtype == 'tones': # Generate real baseband tone at fbb and upconvert to fc
+    if wavtype == 'tones':
         fs = 307.2 # sampling rate
         fbb = 3.84 # tones at +/- fbb
         
         # Generate RF input signal for RF simulation
         # r*cos((wc - wbb)t) + r*cos((wc + wbb)t)
-        tx_bb = tonegen.tonegen(2**16,fs,fbb)
+        x = tonegen.tonegen(2**16,fs,fbb)
         r = math.sqrt(2*50*1e-3)*10**(pin/20) # RF tone amplitude
-        tx_bb = tx_bb*r*2 # RF tone amplitude gets halved relative to BB amplitude due to upconversion
-        tx_rf = trx.upconvert(tx_bb,fs,fc)
+        x = x*r*2 # RF tone amplitude gets halved relative to BB amplitude due to upconversion
+        tx_rf = trx.upconvert(x,fs,fc)
+        tx_bb = x
         
-        # Generate baseband input signal for baseband simulation
+        # Generate baseband input signal for baseband equivalent simulation
         # r*exp(1j*wbb*t) + r*exp(-1j*wbb*t)
         tx_bb_m = tonegen.tonegen(2**16,fs,-fbb,cossin='exp')
         tx_bb_p = tonegen.tonegen(2**16,fs,+fbb,cossin='exp')
         tx_bb_m = tx_bb_m*r
         tx_bb_p = tx_bb_p*r
-    elif wavtype == 'ofdm': # Generate OFDM baseband waveform and upconvert to fc
+    elif wavtype == 'ofdm':
+        # Generate input signals
+        # RF signal for RF simulation: tx_rf = r*cos(wc*t + phi)
+        # Baseband siganl for baseband equivalent simulation: tx_bb = r*exp(1j*phi)
         nsym = 14; bw = 5; scs = 15; num_sc = 300; start_sc = 0; ncp = 7;
         modorder = 4; en_tprecode = 0; wola = 10;
         x,x_standard,cfg_evm = ofdm.ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,osr=40,ncp=ncp,wola=wola)
@@ -68,12 +72,17 @@ if __name__ == '__main__':
     aiip3 = math.sqrt(2*50*1e-3)*10**(piip3/20)
     
     a1 = 1
+    a2 = a1/aiip2
+    a3 = -4/3*a1/aiip3**2
     
-    # Apply RF nonlinear model
-    rx_rf = a1*tx_rf + (a1/aiip2)*tx_rf**2 + (-4/3*a1/aiip3**2)*tx_rf**3
+    # Apply RF nonlinear model (this is independent of input waveform, since this is the true model)
+    rx_rf = a1*tx_rf + a2*tx_rf**2 + a3*tx_rf**3
     
     # Apply baseband nonlinear model
-    rx_bb = a1*(tx_bb_p + tx_bb_m) + (a1/aiip2)*(tx_bb_p**2 + tx_bb_m**2) + (-a1/aiip3**2)*(tx_bb_p**3 + tx_bb_m**3)
+    if wavtype == 'tones':
+        rx_bb = (a1/2)*(tx_bb_p + tx_bb_m) + (a2/2)*(tx_bb_p**2 + tx_bb_m**2) + (3*a3/8)*(tx_bb_p**3 + tx_bb_m**3)
+    elif wavtype == 'ofdm':
+        rx_bb = (a1/2)*tx_bb + (a2/2)*abs(tx_bb)**2 + (3*a3/8)*abs(tx_bb)**2*tx_bb
     
     """
     # Apply RF nonlinear model
@@ -240,8 +249,31 @@ if __name__ == '__main__':
         print('IM3 (dBc) = ' + str(np.round(imd_dbc,2)))
         print('Expected IM3 (dBc) = ' + str(np.round(imd_dbc_calc,2)))
         print('---------------------------')
-
-    # Plots    
+        
+    # Plot RF model
+    plt.figure()
+    [p,f] = calc.psd(tx_bb,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='blue',linewidth=10,label='Tx BB')
+    [p,f] = calc.psd(tx_rf,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='red',linewidth=10,label='Tx RF')
+    [p,f] = calc.psd(rx_rf,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='green',linewidth=5,label='Rx RF (Post-NL)')
+    [p,f] = calc.psd(rx_rf_down,fs,fs/2048)
+    plt.plot(f,10*np.log10(p),color='orange',label='Rx BB (Post-NL and Downconverted)')
+    
+    plt.title("RF Nonlinear Model",{'fontsize':40})
+    plt.xlabel("Frequency (MHz)",{'fontsize':30})
+    plt.ylabel("PSD (dB)",{'fontsize':30})
+    plt.legend(loc="lower right",fontsize=10)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
+    plt.autoscale(enable=True,axis='both',tight=True)
+    plt.xlim((-fc-5*fbb,+fc+5*fbb))
+    plt.xlim((-5*fbb,+5*fbb))
+    plt.ylim(bottom=-100)
+    plt.grid()    
+    
+    # Plot baseband equivalent model
     plt.figure()
     if wavtype == 'tones':
         [p,f] = calc.psd(tx_bb_m+tx_bb_p,fs,fs/2048)
@@ -258,28 +290,6 @@ if __name__ == '__main__':
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.autoscale(enable=True,axis='both',tight=True)
-    plt.xlim((-5*fbb,+5*fbb))
-    plt.ylim(bottom=-100)
-    plt.grid()
-    
-    plt.figure()
-    [p,f] = calc.psd(tx_bb,fs,fs/2048)
-    plt.plot(f,10*np.log10(p),color='blue',linewidth=10,label='Tx BB')
-    [p,f] = calc.psd(tx_rf,fs,fs/2048)
-    plt.plot(f,10*np.log10(p),color='red',linewidth=10,label='Tx RF (Upconverted)')
-    [p,f] = calc.psd(rx_rf,fs,fs/2048)
-    plt.plot(f,10*np.log10(p),color='green',linewidth=5,label='Rx RF (Post-NL)')
-    [p,f] = calc.psd(rx_rf_down,fs,fs/2048)
-    plt.plot(f,10*np.log10(p),color='orange',label='Rx BB (Post-NL and Downconverted)')
-    
-    plt.title("RF Nonlinear Model",{'fontsize':40})
-    plt.xlabel("Frequency (MHz)",{'fontsize':30})
-    plt.ylabel("PSD (dB)",{'fontsize':30})
-    plt.legend(loc="lower right",fontsize=10)
-    plt.xticks(fontsize=20)
-    plt.yticks(fontsize=20)
-    plt.autoscale(enable=True,axis='both',tight=True)
-    plt.xlim((-fc-5*fbb,+fc+5*fbb))
     plt.xlim((-5*fbb,+5*fbb))
     plt.ylim(bottom=-100)
     plt.grid()
