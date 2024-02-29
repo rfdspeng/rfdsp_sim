@@ -175,29 +175,6 @@ def psd(x,fs,rbw,wintype='kaiser'):
     p = fft.fftshift(p)
     return (p,f)
 
-# =============================================================================
-# 
-# def psd_dbm(p,f,low,high,zo=50):
-#     """
-#     Calculates power in PSD
-#     
-#     p is PSD in V^2/Hz (signal.welch must be called with scaling='density', which is default)
-#     f is PSD frequencies in MHz
-#     low and high are the frequency integration limits in MHz
-#     zo is impedance of the system
-#     """
-#     
-#     psig = p[(f >= low) & (f <= high)]
-#     fsig = f[(f >= low) & (f <= high)]
-#     binsizes = np.diff(fsig)*1e6
-#     binsizes = np.append(binsizes,binsizes[-1])
-#     
-#     p_lin = sum(psig*binsizes)
-#     p_dbm = 10*np.log10(p_lin/zo/1e-3)
-#     
-#     return p_dbm
-# =============================================================================
-
 def psd_dbm(x,fs,rbw,low,high,zo=50):
     """
     Calculates PSD of x and then computes power from PSD
@@ -206,17 +183,21 @@ def psd_dbm(x,fs,rbw,low,high,zo=50):
     zo is impedance of the system
     """
     
+    # For accurate PSD (scaling='density', see below), fs must be in Hz. Convert everything from MHz to Hz.
     fs = fs*1e6; rbw = rbw*1e6; low = low*1e6; high = high*1e6
     nfft = math.ceil(fs/rbw)
     taps = signal.windows.kaiser(nfft,25)
     
+    # Using scaling='spectrum' seems to lead to inaccurate power estimation
+    # scaling='density' returns PSD in V^2/Hz if fs is in Hz
     f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
                        detrend=False,return_onesided=False,scaling='density')
     f = fft.fftshift(f)
     p = fft.fftshift(p)
     
-    psig = p[(f >= low) & (f <= high)]
-    p_lin = sum(psig*rbw)
+    psig = p[(f >= low) & (f <= high)] # integration limits
+    fsig = f[(f >= low) & (f <= high)] # for debug only
+    p_lin = sum(psig*rbw) # convert from V^2/Hz to V^2
     p_dbm = 10*np.log10(p_lin/zo/1e-3)
     
     return p_dbm
