@@ -167,11 +167,60 @@ def psd(x,fs,rbw,wintype='kaiser'):
         
     #f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
     #                   detrend='constant',return_onesided=False,scaling='spectrum')
+    #f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
+    #                   detrend=False,return_onesided=False,scaling='spectrum')
     f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
-                       detrend=False,return_onesided=False,scaling='spectrum')
+                       detrend=False,return_onesided=False)
     f = fft.fftshift(f)
     p = fft.fftshift(p)
     return (p,f)
+
+# =============================================================================
+# 
+# def psd_dbm(p,f,low,high,zo=50):
+#     """
+#     Calculates power in PSD
+#     
+#     p is PSD in V^2/Hz (signal.welch must be called with scaling='density', which is default)
+#     f is PSD frequencies in MHz
+#     low and high are the frequency integration limits in MHz
+#     zo is impedance of the system
+#     """
+#     
+#     psig = p[(f >= low) & (f <= high)]
+#     fsig = f[(f >= low) & (f <= high)]
+#     binsizes = np.diff(fsig)*1e6
+#     binsizes = np.append(binsizes,binsizes[-1])
+#     
+#     p_lin = sum(psig*binsizes)
+#     p_dbm = 10*np.log10(p_lin/zo/1e-3)
+#     
+#     return p_dbm
+# =============================================================================
+
+def psd_dbm(x,fs,rbw,low,high,zo=50):
+    """
+    Calculates PSD of x and then computes power from PSD
+    fs and rbw are in MHz
+    low and high are the frequency integration limits in MHz
+    zo is impedance of the system
+    """
+    
+    fs = fs*1e6; rbw = rbw*1e6; low = low*1e6; high = high*1e6
+    nfft = math.ceil(fs/rbw)
+    taps = signal.windows.kaiser(nfft,25)
+    
+    f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
+                       detrend=False,return_onesided=False,scaling='density')
+    f = fft.fftshift(f)
+    p = fft.fftshift(p)
+    
+    psig = p[(f >= low) & (f <= high)]
+    p_lin = sum(psig*rbw)
+    p_dbm = 10*np.log10(p_lin/zo/1e-3)
+    
+    return p_dbm
+    
 
 def dbm2v(x,unit,zo=50):
     """
