@@ -96,27 +96,25 @@ def comp_db(x,y,cfg={}):
 
 def dbm2v(x,unit,zo=50):
     """
-    Converts dBm to V and vice versa
+    Converts dBm to Volts and vice versa
+    
+    Parameters
+    ----------
+    x : value in dBm or Volts
+    unit : 'V' or 'dBm'
+    zo : impedance of the system in Ohms
 
-    Assumes dBm is @ RF (-3dB relative to complex baseband model)
-
-    x is the value, zo is characteristic impedance
-    
-    
-    xrf = r*cos(wt + phi)
-    xbb = r*exp(1j*phi)
-    
-    
+    Returns
+    -------
+    P or V: (power in dBm) or (voltage in Volts)  
     
     """
 
     if unit == 'dBm':
-        x = x+10*np.log10(2) # Complex baseband is +3dB relative to RF
         V = math.sqrt(10**(x/10)*zo*1e-3)
         return V
     elif unit == 'V':
         P = 10*np.log10(x**2/zo/1e-3)
-        P = P-10*np.log10(2) # RF is -3dB relative to complex baseband
         return P
 
 def noise_dbc(x,fs,rbw,sigf,noisef,cfg={}):
