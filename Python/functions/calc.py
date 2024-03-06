@@ -94,6 +94,31 @@ def comp_db(x,y,cfg={}):
         
     return (comp,nlse)
 
+def dbm2v(x,unit,zo=50):
+    """
+    Converts dBm to V and vice versa
+
+    Assumes dBm is @ RF (-3dB relative to complex baseband model)
+
+    x is the value, zo is characteristic impedance
+    
+    
+    xrf = r*cos(wt + phi)
+    xbb = r*exp(1j*phi)
+    
+    
+    
+    """
+
+    if unit == 'dBm':
+        x = x+10*np.log10(2) # Complex baseband is +3dB relative to RF
+        V = math.sqrt(10**(x/10)*zo*1e-3)
+        return V
+    elif unit == 'V':
+        P = 10*np.log10(x**2/zo/1e-3)
+        P = P-10*np.log10(2) # RF is -3dB relative to complex baseband
+        return P
+
 def noise_dbc(x,fs,rbw,sigf,noisef,cfg={}):
     wintype = cfg['wintype'] if 'wintype' in cfg else 'kaiser'
     [p,f] = psd(x,fs,rbw,wintype)
@@ -144,18 +169,45 @@ def papr(x,p=99.99):
 
 def power_dbm(x,zo=50):
     """
-    Calculates the power of complex signal x (power @ RF in dBm)
+    Calculates power of a signal from its samples
+    
+    Parameters
+    ----------
+    x : signal in Volts
+    zo : impedance of the system in Ohms
+    
+    Returns
+    -------
+    p_avg : average power in dBm
+    p_peak : peak power in dBm
+    
     """
     
     # Average power
     p_avg = 10*np.log10(rms(x)**2/zo/1e-3)
-    p_avg = p_avg-10*np.log10(2) # RF is -3dB relative to complex baseband
     
     # Peak power
     p_peak = 10*np.log10(max(abs(x))**2/zo/1e-3)
     return (p_avg,p_peak)
     
 def psd(x,fs,rbw,wintype='kaiser'):
+    """
+    Calculates PSD of a signal
+    
+    Parameters
+    ----------
+    x : signal in Volts
+    fs : sampling rate in MHz
+    rbw : desired resolution BW in MHz
+    wintype : determines type of window to use on each segment
+
+    Returns
+    -------
+    p : PSD of x in V^2/Hz
+    f : PSD frequencies in MHz
+    
+    """
+    
     nfft = math.ceil(fs/rbw)
     
     if wintype == 'kaiser':
@@ -165,68 +217,41 @@ def psd(x,fs,rbw,wintype='kaiser'):
     elif wintype == 'hann':
         taps = signal.windows.hann(nfft)
         
-    #f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
-    #                   detrend='constant',return_onesided=False,scaling='spectrum')
-    #f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
-    #                   detrend=False,return_onesided=False,scaling='spectrum')
-    f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
-                       detrend=False,return_onesided=False)
-    f = fft.fftshift(f)
+    # detrend must be set to False; otherwise, by default, the mean of the signal is subtracted
+    # scaling is set to 'density' by default, but I explicitly call it here. 'density' returns PSD in V^2/Hz if fs is in Hz. Using 'spectrum' seems to lead to inaccurate power estimation.
+    f,p = signal.welch(x,fs*1e6,taps,nperseg=None,noverlap=None,nfft=None,
+                       detrend=False,return_onesided=False,scaling='density')
+    f = fft.fftshift(f)/1e6
     p = fft.fftshift(p)
     return (p,f)
 
 def psd_dbm(x,fs,rbw,low,high,zo=50):
     """
-    Calculates PSD of x and then computes power from PSD
-    fs and rbw are in MHz
-    low and high are the frequency integration limits in MHz
-    zo is impedance of the system
+    Calculates power of a signal from its PSD
+    
+    Parameters
+    ----------
+    x : signal in Volts
+    fs : sampling rate in MHz
+    rbw : desired resolution BW in MHz (of the PSD)
+    low : low frequency of signal in MHz
+    high : high frequency of signal in MHz
+    zo : impedance of the system in Ohms
+
+    Returns
+    -------
+    p_dbm : signal power in dBm
+    
     """
     
-    # For accurate PSD (scaling='density', see below), fs must be in Hz. Convert everything from MHz to Hz.
-    fs = fs*1e6; rbw = rbw*1e6; low = low*1e6; high = high*1e6
-    nfft = math.ceil(fs/rbw)
-    taps = signal.windows.kaiser(nfft,25)
-    
-    # Using scaling='spectrum' seems to lead to inaccurate power estimation
-    # scaling='density' returns PSD in V^2/Hz if fs is in Hz
-    f,p = signal.welch(x,fs,taps,nperseg=None,noverlap=None,nfft=None,
-                       detrend=False,return_onesided=False,scaling='density')
-    f = fft.fftshift(f)
-    p = fft.fftshift(p)
+    [p,f] = psd(x,fs,rbw)
     
     psig = p[(f >= low) & (f <= high)] # integration limits
     fsig = f[(f >= low) & (f <= high)] # for debug only
-    p_lin = sum(psig*rbw) # convert from V^2/Hz to V^2
+    p_lin = sum(psig*rbw*1e6) # convert from V^2/Hz to V^2 (assumes density is constant in a given bin)
     p_dbm = 10*np.log10(p_lin/zo/1e-3)
     
     return p_dbm
-    
-
-def dbm2v(x,unit,zo=50):
-    """
-    Converts dBm to V and vice versa
-
-    Assumes dBm is @ RF (-3dB relative to complex baseband model)
-
-    x is the value, zo is characteristic impedance
-    
-    
-    xrf = r*cos(wt + phi)
-    xbb = r*exp(1j*phi)
-    
-    
-    
-    """
-
-    if unit == 'dBm':
-        x = x+10*np.log10(2) # Complex baseband is +3dB relative to RF
-        V = math.sqrt(10**(x/10)*zo*1e-3)
-        return V
-    elif unit == 'V':
-        P = 10*np.log10(x**2/zo/1e-3)
-        P = P-10*np.log10(2) # RF is -3dB relative to complex baseband
-        return P
     
 def rms(x):
     """
