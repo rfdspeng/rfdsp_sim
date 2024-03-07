@@ -26,9 +26,10 @@ if __name__ == '__main__':
     
     
     wavtype = 'tones' # 'tones' or 'ofdm'
-    #wavtype = 'ofdm'
+    wavtype = 'ofdm'
     
     pin = 0 # dBm @ RF. For tones, this is power of one tone.
+    pin = 0
     piip2 = 20 # dBm @ RF
     piip3 = 20 # dBm @ RF
     
@@ -64,7 +65,7 @@ if __name__ == '__main__':
         x,x_standard,cfg_evm = ofdm.ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,osr=40,ncp=ncp,wola=wola)
         fs = cfg_evm['fs']
         fbb = bw/2
-        tx_bb = x/calc.rms(x)*calc.dbm2v(pin,'dBm')
+        tx_bb = x/calc.rms(x)*(math.sqrt(2)*calc.dbm2v(pin,'dBm'))
         tx_rf = trx.upconvert(tx_bb,fs,fc)
     
     # Nonlinear intercepts
@@ -83,6 +84,41 @@ if __name__ == '__main__':
         rx_bb = (a1/2)*(tx_bb_p + tx_bb_m) + (a2/2)*(tx_bb_p**2 + tx_bb_m**2) + (3*a3/8)*(tx_bb_p**3 + tx_bb_m**3)
     elif wavtype == 'ofdm':
         rx_bb = (a1/2)*tx_bb + (a2/2)*abs(tx_bb)**2 + (3*a3/8)*abs(tx_bb)**2*tx_bb
+    
+    # OFDM signal powers
+    if wavtype == 'ofdm':
+        # Baseband
+        nrb = bw*5
+        sigl = -nrb*12*scs/1000/2 + start_sc*scs/1000
+        sigh = sigl + (num_sc-1)*scs/1000
+        tx_bb_td_pwr,_ = calc.power_dbm(tx_bb)
+        rx_bb_td_pwr,_ = calc.power_dbm(rx_bb)
+        tx_bb_fd_pwr = calc.psd_dbm(tx_bb,fs,fs/2048,sigl,sigh)
+        rx_bb_fd_pwr = calc.psd_dbm(rx_bb,fs,fs/2048,sigl,sigh)
+        
+        # RF
+        sigl = sigl+fc
+        sigh = sigh+fc
+        tx_rf_td_pwr,_ = calc.power_dbm(tx_rf)
+        rx_rf_td_pwr,_ = calc.power_dbm(rx_rf)
+        tx_rf_fd_pwr = calc.psd_dbm(tx_rf,fs,fs/2048,sigl,sigh) + 10*np.log10(2)
+        rx_rf_fd_pwr = calc.psd_dbm(rx_rf,fs,fs/2048,sigl,sigh) + 10*np.log10(2)
+        
+        print('Signal powers in OFDM RF simulation')
+        print('---------------------------')
+        print('tx_rf_td_pwr:\t' + str(round(tx_rf_td_pwr,2)))
+        print('tx_rf_fd_pwr:\t' + str(round(tx_rf_fd_pwr,2)))
+        print('rx_rf_td_pwr:\t' + str(round(rx_rf_td_pwr,2)))
+        print('rx_rf_fd_pwr:\t' + str(round(rx_rf_fd_pwr,2)))
+        print('\n')
+        
+        print('Signal powers in OFDM baseband equivalent simulation')
+        print('---------------------------')
+        print('tx_bb_td_pwr:\t' + str(round(tx_bb_td_pwr,2)))
+        print('tx_bb_fd_pwr:\t' + str(round(tx_bb_fd_pwr,2)))
+        print('rx_bb_td_pwr:\t' + str(round(rx_bb_td_pwr,2)))
+        print('rx_bb_fd_pwr:\t' + str(round(rx_bb_fd_pwr,2)))
+        print('\n')
     
     """
     # Apply RF nonlinear model

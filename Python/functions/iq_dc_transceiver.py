@@ -18,6 +18,9 @@ import tonegen
 def upconvert(x,fs,fc,common_phase=0,lo_phase_mismatch=0,lo_gain_mismatch=0):
     """
     Upconverts complex x to fc
+    
+    x_bb = r*exp(1j*phi)
+    x_rf = r*cos(wc*t + phi)
 
     Parameters
     ----------
