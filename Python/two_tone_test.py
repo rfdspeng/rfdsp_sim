@@ -29,9 +29,10 @@ if __name__ == '__main__':
     wavtype = 'ofdm'
     
     pin = 0 # dBm @ RF. For tones, this is power of one tone.
-    pin = 0
     piip2 = 20 # dBm @ RF
     piip3 = 20 # dBm @ RF
+    #piip2 = 500
+    #piip3 = 500
     
     
     fc = 61.44 # LO frequency
@@ -87,7 +88,7 @@ if __name__ == '__main__':
     
     # OFDM signal powers
     if wavtype == 'ofdm':
-        # Baseband
+        # Baseband equivalent model signal powers
         nrb = bw*5
         sigl = -nrb*12*scs/1000/2 + start_sc*scs/1000
         sigh = sigl + (num_sc-1)*scs/1000
@@ -96,7 +97,7 @@ if __name__ == '__main__':
         tx_bb_fd_pwr = calc.psd_dbm(tx_bb,fs,fs/2048,sigl,sigh)
         rx_bb_fd_pwr = calc.psd_dbm(rx_bb,fs,fs/2048,sigl,sigh)
         
-        # RF
+        # RF model signal powers
         sigl = sigl+fc
         sigh = sigh+fc
         tx_rf_td_pwr,_ = calc.power_dbm(tx_rf)
@@ -106,39 +107,19 @@ if __name__ == '__main__':
         
         print('Signal powers in OFDM RF simulation')
         print('---------------------------')
-        print('tx_rf_td_pwr:\t' + str(round(tx_rf_td_pwr,2)))
-        print('tx_rf_fd_pwr:\t' + str(round(tx_rf_fd_pwr,2)))
-        print('rx_rf_td_pwr:\t' + str(round(rx_rf_td_pwr,2)))
-        print('rx_rf_fd_pwr:\t' + str(round(rx_rf_fd_pwr,2)))
+        print('tx_rf_td_pwr (dBm):\t' + str(round(tx_rf_td_pwr,2)))
+        print('tx_rf_fd_pwr (dBm):\t' + str(round(tx_rf_fd_pwr,2)))
+        print('rx_rf_td_pwr (dBm):\t' + str(round(rx_rf_td_pwr,2)))
+        print('rx_rf_fd_pwr (dBm):\t' + str(round(rx_rf_fd_pwr,2)))
         print('\n')
         
         print('Signal powers in OFDM baseband equivalent simulation')
         print('---------------------------')
-        print('tx_bb_td_pwr:\t' + str(round(tx_bb_td_pwr,2)))
-        print('tx_bb_fd_pwr:\t' + str(round(tx_bb_fd_pwr,2)))
-        print('rx_bb_td_pwr:\t' + str(round(rx_bb_td_pwr,2)))
-        print('rx_bb_fd_pwr:\t' + str(round(rx_bb_fd_pwr,2)))
+        print('tx_bb_td_pwr (dBm):\t' + str(round(tx_bb_td_pwr,2)))
+        print('tx_bb_fd_pwr (dBm):\t' + str(round(tx_bb_fd_pwr,2)))
+        print('rx_bb_td_pwr (dBm):\t' + str(round(rx_bb_td_pwr,2)))
+        print('rx_bb_fd_pwr (dBm):\t' + str(round(rx_bb_fd_pwr,2)))
         print('\n')
-    
-    """
-    # Apply RF nonlinear model
-    a1 = 1
-    a2 = a1/aiip2
-    a3 = -4/3*a1/aiip3**2
-    rx_rf = a1*tx_rf + a2*tx_rf**2 + a3*tx_rf**3
-    
-    # Apply baseband nonlinear model
-    if wavtype == 'tones':
-        a1 = 1
-        a2 = 2*a1/aiip2
-        a3 = -4/3*a1/aiip3**2
-        rx_bb = a1*(tx_bb_m + tx_bb_p) + a2/2*(tx_bb_m**2 + tx_bb_p**2) + 3/4*a3*(tx_bb_m**3 + tx_bb_p**3)
-    elif wavtype == 'ofdm':
-        a1 = 1
-        a2 = a1/aiip2
-        a3 = -4/3*a1/aiip3**2
-        rx_bb = a1*tx_bb + a2/2*abs(tx_bb)**2 + 3/4*a3*abs(tx_bb)**2*tx_bb
-    """
     
     # Isolate IM2 (RF model only)
     passband = fbb*5/(fs/2)
@@ -169,6 +150,31 @@ if __name__ == '__main__':
     # Isolate desired signal
     rx_rf_down = signal.lfilter(b,1,rx_rf_down_raw)
     rx_rf_down = rx_rf_down + rx_rf_im2
+    
+    # Calculate EVM for OFDM simulation
+    if wavtype == 'ofdm':
+        wola_len = cfg_evm['wola_len']
+        
+        # RF model
+        cfg_evm['en_plot'] = 1
+        cfg_evm['title'] = 'RF Model'
+        evm_rf = ofdm.ofdm_evm_calculator(cfg_evm,tx_bb[round(wola_len/2):],rx_rf_down[round((wola_len+ntaps-1)/2):])
+        snr_rf = -20*np.log10(evm_rf/100)
+        
+        # Baseband equivalent model
+        cfg_evm['title'] = 'Baseband Equivalent Model'
+        evm_bb = ofdm.ofdm_evm_calculator(cfg_evm,tx_bb[round(wola_len/2):],rx_bb[round(wola_len/2):])
+        snr_bb = -20*np.log10(evm_bb/100)
+        
+        print('Signal quality in OFDM simulation')
+        print('---------------------------')
+        print('evm_rf (%):\t\t\t' + str(round(evm_rf,2)))
+        print('evm_bb (%):\t\t\t' + str(round(evm_bb,2)))
+        print('snr_rf (dB):\t\t' + str(round(snr_rf,2)))
+        print('snr_bb (dB):\t\t' + str(round(snr_bb,2)))
+        print('Expected IM2 (dBc):\t' + str(round(pin - piip2,2)))
+        print('Expected IM3 (dBc):\t' + str(round(2*pin - 2*piip3,2)))
+        print('\n')
     
     """
     Important note on using SPDFT to estimate RF signal power
@@ -304,9 +310,9 @@ if __name__ == '__main__':
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.autoscale(enable=True,axis='both',tight=True)
-    plt.xlim((-fc-5*fbb,+fc+5*fbb))
-    plt.xlim((-5*fbb,+5*fbb))
-    plt.ylim(bottom=-100)
+    #plt.xlim((-fc-5*fbb,+fc+5*fbb))
+    #plt.xlim((-5*fbb,+5*fbb))
+    #plt.ylim(bottom=-100)
     plt.grid()    
     
     # Plot baseband equivalent model
@@ -326,6 +332,6 @@ if __name__ == '__main__':
     plt.xticks(fontsize=20)
     plt.yticks(fontsize=20)
     plt.autoscale(enable=True,axis='both',tight=True)
-    plt.xlim((-5*fbb,+5*fbb))
-    plt.ylim(bottom=-100)
+    #plt.xlim((-5*fbb,+5*fbb))
+    #plt.ylim(bottom=-100)
     plt.grid()
