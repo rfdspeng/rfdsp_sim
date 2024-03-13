@@ -116,11 +116,11 @@ def ofdm_evm_calculator(cfg,x,y):
     en_fd_eq = 0 if not('en_fd_eq' in cfg) else cfg['en_fd_eq']
     
     # Convert from TD symbols to FD subcarriers
-    n = min(len(x),len(y))
     nfft = cfg['nfft']; ncp = cfg['ncp']; sym_len = nfft+ncp
     fft_start = round(ncp/2)
     tone_idx = cfg['tone_idx']
     tone_idx = tone_idx == 2
+    n = min(len(x),len(y))-1 - sym_len # last possible start index (sdx)
     for sdx in range(0,n,sym_len):
         sym_x = x[sdx:sdx+sym_len]
         sym_y = y[sdx:sdx+sym_len]

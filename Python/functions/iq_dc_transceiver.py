@@ -18,6 +18,9 @@ import tonegen
 def upconvert(x,fs,fc,common_phase=0,lo_phase_mismatch=0,lo_gain_mismatch=0):
     """
     Upconverts complex x to fc
+    
+    x_bb = r*exp(1j*phi)
+    x_rf = r*cos(wc*t + phi)
 
     Parameters
     ----------
@@ -67,8 +70,8 @@ def downconvert(x,fs,fc,common_phase=0,lo_phase_mismatch=0,lo_gain_mismatch=0):
     
     # Generate LOs
     lo_i,lo_q = generate_lo(len(x),fs,fc,common_phase=common_phase,lo_phase_mismatch=lo_phase_mismatch,lo_gain_mismatch=lo_gain_mismatch)
-    lo_i = 2*lo_i
-    lo_q = 2*lo_q
+    #lo_i = 2*lo_i
+    #lo_q = 2*lo_q
     
     # Downconvert
     I = x*lo_i
