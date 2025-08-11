@@ -19,9 +19,20 @@
 * `np.array(list or tuple)` to create an array
     * `dtype` is inferred from the types of the elements in the sequence. You can also explicitly specify `dtype` in the function call.
     * For multi-dimensional arrays, call `array()` with sequences of sequences
-* `np.zeros()`, `np.ones()`, `np.empty()` to create placeholder arrays. Specify the dimensions. You can specify `dtype`.
+* `np.zeros` - create array of 0s by specifying the dimensions and dtype
+* `np.zeros_like` - create an array of 0s with the same shape and type as the given array
+* `np.ones` - create array of 1s by specifying the dimensions and dtype
+* `np.ones_like1` - create an array of 1s with the same shape and type as the given array
+* `np.empty` - create uninitialized array by specifying the dimensions and dtype
+* `np.empty_like` - create an uninitialized array with the same shape and type as the given array
 * `np.arange(start: number | None = 0, stop, step: number | None = 1)` - generate an array of evenly spaced values. Better suited for integers - due to finite floating-point precision, may return an unpredictable number of elements.
 * `np.linspace(start, stop, num: int)` - generate an array of evenly spaced values, where `num` is the array size. Better than `arange` for floating-point numbers.
+
+Random number generators:
+* `np.random.Generator.random`
+* `np.random.Generator.normal`
+
+`np.from_function` - construct an array by executing a function over each coordinate
 
 ## Printing arrays
 
@@ -100,19 +111,51 @@ These functions accept the `axis` parameter. If `None`, then the function is app
 * `np.cumprod` - cumulative product of elements
 * `np.cumsum` - cumulative sum of elements
 * `np.diff` - calculate the n-th discrete difference
-* 
+* `np.max` - return maximum value
+* `np.mean` - compute arithmetic mean
+* `np.median` - ompute median
+* `np.min` - return minimum value
+* `np.prod` - return product of elements
+* `np.std` - compute standard deviation
+* `np.sum` - return sum of elements
+* `np.var` - compute variance
 
 These functions apply elementwise (no `axis` parameter).
-* `np.ceil` - return ceiling of the values
+* `np.ceil` - return ceiling of the input values
 * `np.clip` - clip the values in an array (both lower and upper)
 * `np.conj` - return complex conjugate of the values
+* `np.floor` - return floor of the input values
+* `np.invert` - compute bit-wise inversion or bit-wise NOT on each element. Implements the C/Python operator `~`.
+* `np.maximum` - compare two arrays and return a new array containing the element-wise maxima. Propagates NaNs.
+* `np.minimum` - like `maximum` but for minimum
+* `np.round` - round to the given number of decimals
 
-
+Linear algebra: 
+* `np.dot(a, b)` - dot product of two arrays
+    * If both 1-D arrays, then inner product
+    * If `a` is N-D and `b` is 1-D, then sum product over the last axis of `a` and `b`
+    * If `a` is N-D and `b` is M-D (M >= 2), then sum product over the last axis of `a` and second-to-last axis of `b`
+* `np.inner` - similar to `dot`. Inner product of two arrays for 1-D arrays, and in higher dimensions, a sum product over the last axes.
+* `np.outer` - outer product of two 1-D vectors
+* `np.trace` - return the sum along diagonals of an array; array must be at least 2-D.
+* `np.transpose` - return an array with axes transposed
+    * 1-D array: no change
+    * 2-D array: standard matrix transpose
+    * N-D array: permute axes based on arguments. If no arguments given, then reverse the dimensions.
+* `np.vdot` - dot product but slightly different than `dot`.
+    * If the first argument is complex, it's replaced by its complex conjugate
+    * For multidimensional arrays, it flattens the arguments to 1-D arrays before taking the dot product. When arguments are 2-D arrays of the same shape, this function effectively calculates the Frobenius inner product (aka trace inner product or standard inner product).
 
 Other:
 * `np.corrcoef`
 * `np.cov`
 * `np.cross`
+* `np.lexsort`
+* `np.nonzero` - return indices of elements that are non-zero - a tuple of arrays, one for each dimension
+* `np.sort` - return sorted copy of an array
+* `np.vectorize`
+* `np.where(condition, [x, y])` - given a condition, choose elements from either `x` or `y`. If `x` and `y` are omitted, then this is like calling `nonzero` on `condition` (prefer to use `nonzero` directly in this case).
 
-Linear algebra: 
-* `np.dot` - dot product of two arrays
+## Indexing, slicing, and iterating
+
+1-D 
