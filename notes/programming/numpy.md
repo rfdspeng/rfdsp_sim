@@ -158,4 +158,116 @@ Other:
 
 ## Indexing, slicing, and iterating
 
-1-D 
+1-D arrays can be indexed, sliced, and iterated over, much like lists and other Python sequences.
+```python
+a = np.arange(10)**3
+a
+a[2]
+a[2:5]
+# equivalent to a[0:6:2] = 1000;
+# from start to position 6, exclusive, set every 2nd element to 1000
+a[:6:2] = 1000
+a
+a[::-1]  # reversed a
+for i in a:
+    print(i**(1 / 3.))
+```
+
+Multidimensional arrays can have one index per axis.
+```python
+def f(x, y):
+    return 10 * x + y
+b = np.fromfunction(f, (5, 4), dtype=int)
+b          # 5 x 4 matrix
+b[2, 3]    # element at (2, 3)
+b[0:5, 1]  # each row in the second column of b
+b[:, 1]    # equivalent to the previous example
+b[1:3, :]  # each column in the second and third row of b
+```
+
+When fewer indices are provided than the number of axes, the missing indices are considered complete slices `:`.
+```python
+b[-1]   # the last row. Equivalent to b[-1, :]
+```
+
+The expression in `b[i]` is treated as `i` followed by as many instances of `:` as needed to represent the remaining axes. You can also write this using dots as `b[i, ...]`.
+
+`...` represent as many colons as needed to produce a complete indexing tuple. For example, if `x` is an array with 5 axes, then
+* `x[1, 2, ...]` = `x[1, 2, :, :, :]`
+* `x[..., 3]` = `x[:, :, :, :, 3]`
+* `x[4, ..., 5, :]` = `x[4, :, :, 5, :]`
+
+Iterating over multidimensional arrays is done w.r.t. the first axis, e.g. 
+```python
+for row in b: 
+    print(row)
+```
+
+To iterate over every element, use the `flat` attribute, which is an iterator over all elements in the array:
+```python
+for element in b.flat:
+    print(element)
+```
+
+## Shape manipulation
+
+### Changing the shape of an array
+
+These functions return a modified array; they do not change the original.
+```python
+a = np.floor(10 * rg.random((3, 4)))
+a
+a.shape
+a.ravel()  # returns the array, flattened
+a.reshape(6, 2)  # returns the array with a modified shape
+a.T  # returns the array, transposed
+a.T.shape
+a.shape
+```
+
+In contrast, `a.resize` modifies `a` directly.
+
+If a dimension is given as `-1` in a reshaping operation, then it is automatically calculated, e.g. `a.reshape(3, -1)` is equivalent to `a.reshape(3, 4)`.
+
+`ravel`, `reshape`, `resize` reshape the array "C-style", where the rightmost index "changes the fastest", i.e. the element after `a[0, 0]` is `a[0, 1]`. `ravel` and `reshape` can also specify FORTRAN-style arrays, where the leftmost index changes the fastest.
+
+### Stacking together different arrays
+
+* `np.hstack` stacks arrays along their second axes
+* `np.vstack` stacks arrays along their first axes
+* `np.concatenate` concatenates arrays along a specified axis
+* `np.column_stack` stacks 1-D arrays as columns into a 2-D array (equivalent to `hstack` for 2-D arrays)
+* `np.r_`
+* `np.c_`
+
+### Splitting one array into several smaller ones
+
+* `np.hsplit`
+* `np.vsplit`
+* `np.array_split`
+
+## Copies and views
+
+When operating and manipulating arrays, their data is sometimes copied into a new array and sometimes not. There are three cases.
+
+<u>_Case 1: No Copy At All_</u>
+
+Simple assignments do not copy objects or their data.
+``` python
+a = np.array([[ 0,  1,  2,  3],
+              [ 4,  5,  6,  7],
+              [ 8,  9, 10, 11]])
+b = a            # no new object is created
+b is a           # a and b are two names for the same ndarray object
+```
+
+Python passes mutable objects as references, so function calls make no copy.
+```python
+def f(x):
+    print(id(x))
+id(a)  # id is a unique identifier of an object 
+f(a)   
+```
+
+<u>_Case 2: View or Shallow Copy_</u>
+
