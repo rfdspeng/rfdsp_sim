@@ -2,7 +2,7 @@
 """
 Created on Wed May 25 14:46:47 2022
 
-Calculator functions
+General signal processing calculator functions
 
 TBD
 - ACLR calculator for single-carrier signals (right now it depends on SCS)
@@ -386,5 +386,5 @@ def scale_psd(p: np.ndarray, f: np.ndarray, bw, scs, start_sc, num_sc):
     psig = p[(f >= sigl) & (f <= sigh)]
     psig = psig.sum()/psig.size
     p = p/psig
-    
+
     return p

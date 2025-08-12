@@ -2,10 +2,11 @@
 """
 Created on Tue May 17 08:50:42 2022
 
+Functions for OFDM waveforms
+
 @author: Ryan Tsai
 """
 
-import math
 import numpy as np
 from scipy import signal
 from scipy import fft
@@ -13,68 +14,134 @@ import matplotlib.pyplot as plt
 from rfdsppy import calc
 from rfdsppy.digital_modulation import modulation_mapper
 
-def ofdm_wavgen(nsym,bw,scs,num_sc,start_sc,modorder,en_tprecode,osr=1,ncp=0,wola=0,seed=[]):
+def ofdm_wavgen(nsym: int=14, bw: int=10, scs: int=15, 
+                num_sc: int | None=None, 
+                start_sc=0, modorder=4, 
+                en_tprecode: bool=False, 
+                osr: int=1, 
+                ncp: float=0.07, 
+                wola: float=0.0, 
+                seed: int | None=0):
     """
     OFDM waveform generator
+
+    Parameters
+    ----------
+    nsym: number of symbols to generate
+    bw: signal bandwidth (MHz)
+    scs: subcarrier spacing (kHz)
+    num_sc: number of occupied subcarriers
+    start_sc: starting subcarrier index
+    modorder: modulation order (4, 16, 64, 256)
+    en_tprecode: enable/disable transform precoding to switch b/w DFT-s-OFDM and CP-OFDM
+    osr: oversampling ratio
+    ncp: cyclic prefix length as a fraction of FFT size
+    wola: WOLA length as a fraction of FFT size
+    seed: RNG seed for repeatability
+
+    Returns
+    -------
+    x: waveform with WOLA applied
+    x_standard: waveform without WOLA applied
+    cfg: dictionary that contains the waveform information for demodulation
+
     """
-    
-    if seed == []:
-        rng = np.random.default_rng()
-    else:
+
+    if seed:
         rng = np.random.default_rng(seed)
+    else:
+        rng = np.random.default_rng()
     
-    nrb = round(bw*5*15/scs) # Max number of resource blocks
-    nfft = 2**math.ceil(math.log2(nrb*12)) # Natural FFT size (osr=1)
-    if osr > 1:
-        nfft = nfft*osr
-    ncp = round(nfft*ncp/100)
-    sym_len = nfft+ncp
-    fs = nfft*scs/1000 # Waveform sampling rate
-    bps = round(math.log2(modorder))
-    wola_len = round(nfft*wola/100)
-    wola_len = wola_len + (wola_len % 2) # Needs to be even (half outside of symbol, half inside of symbol)
-    b = generate_wola_window(wola_len,sym_len)
+    nrb = round(bw*5*15/scs) # max number of resource blocks
+    nfft = 2**np.ceil(np.log2(nrb*12)) # matural FFT size (osr=1)
+    nfft = nfft*osr # oversampling
+    ncp = round(nfft*ncp/100) # number of samples for cyclic prefix
+    sym_len = nfft+ncp # number of samples per symbol
+    fs = nfft*scs/1000 # waveform sampling rate (MHz)
+    bps = round(np.log2(modorder)) # bits per symbol
+    wola_len = round(nfft*wola/100) # number of samples for WOLA window
+    wola_len = wola_len + (wola_len % 2) # needs to be even (half outside of symbol, half inside of symbol)
+    b = generate_wola_window(wola_len, sym_len) # WOLA window (number of samples = wola_len + sum_len)
+
+    # Automatically calculate the number of subcarriers to allocate if none is provided
+    if num_sc is None:
+        num_sc = nrb*12 - start_sc
     
-    x_standard = np.zeros(nsym*sym_len) + 1j*np.zeros(nsym*sym_len) # No WOLA
-    x = np.zeros(nsym*sym_len+wola_len) + 1j*np.zeros(nsym*sym_len+wola_len) # With WOLA
+    x_standard = np.zeros(nsym*sym_len) + 1j*np.zeros(nsym*sym_len) # no WOLA
+    x = np.zeros(nsym*sym_len+wola_len) + 1j*np.zeros(nsym*sym_len+wola_len) # with WOLA
     for sdx in range(nsym):
-        bitstream = rng.random(bps*num_sc).round() # Bits for current symbol
-        tones = modulation_mapper(bitstream,modorder) # Convert from bits to modulated tones
-        if en_tprecode: tones = fft.fft(tones) # Transform precoding
-        tones_nrb = np.zeros(nrb*12) + 1j*np.zeros(nrb*12) # Available tones
-        tones_nrb[start_sc:start_sc+num_sc] = tones # Allocated tones
-        tones_all = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tones_nrb, np.zeros(round((nfft-nrb*12)/2)))) # Freq-domain zero-padding
+        bitstream = rng.random(bps*num_sc).round() # bits
+        tones = modulation_mapper(bitstream, modorder) # convert from bits to modulated tones
+        if en_tprecode: # transform precoding
+            tones = fft.fft(tones)
+        tones_nrb = np.zeros(nrb*12) + 1j*np.zeros(nrb*12) # available tones
+        tones_nrb[start_sc:start_sc+num_sc] = tones # occupied tones
+        tones_all = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tones_nrb, np.zeros(round((nfft-nrb*12)/2)))) # freq-domain zero-padding
         tones_all = np.concatenate((tones_all[round(nfft/2):], tones_all[0:round(nfft/2)])) # FFT shift prior to IFFT
         sym = fft.ifft(tones_all) # OFDM symbol
-        sym_cp = np.concatenate((sym[nfft-ncp:], sym)) # Add CP
-        x_standard[sdx*sym_len:(sdx+1)*sym_len] = sym_cp # Standard waveform
+        sym_cp = np.concatenate((sym[nfft-ncp:], sym)) # add CP
+        x_standard[sdx*sym_len:(sdx+1)*sym_len] = sym_cp # standard waveform
         
         # Apply WOLA
         sym_wola = np.concatenate((sym[round(nfft-ncp-wola_len/2):], sym, sym[0:round(wola_len/2)]))
-        sym_wola = np.multiply(sym_wola,b)
-        x[sdx*sym_len:(sdx+1)*sym_len+wola_len] = sym_wola + x[sdx*sym_len:(sdx+1)*sym_len+wola_len] # Waveform with WOLA
+        # sym_wola = np.multiply(sym_wola,b)
+        sym_wola = sym_wola * b
+        x[sdx*sym_len:(sdx+1)*sym_len+wola_len] = sym_wola + x[sdx*sym_len:(sdx+1)*sym_len+wola_len]
         
         # Save allocated tone indices for demodulation
         if sdx == 0:
-            tone_idx = np.ones(nrb*12) # 1 = Unallocated tones (IBE)
-            tone_idx[start_sc:start_sc+num_sc] = 2 # 2 = Allocated tones (EVM, equalizer)
-            tone_idx = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tone_idx, np.zeros(round((nfft-nrb*12)/2)))) # 0 = Zero-padded tones
+            tone_idx = np.ones(nrb*12) # 1 = unallocated tones (IBE)
+            tone_idx[start_sc:start_sc+num_sc] = 2 # 2 = allocated tones (EVM, equalizer)
+            tone_idx = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tone_idx, np.zeros(round((nfft-nrb*12)/2)))) # 0 = zero-padded tones
             tone_idx = np.concatenate((tone_idx[round(nfft/2):], tone_idx[0:round(nfft/2)]))
     
     # Output dictionary for demodulation
-    cfg = {}
-    cfg['fs'] = fs; cfg['nfft'] = nfft; cfg['ncp'] = ncp; cfg['nrb'] = nrb; cfg['nsym'] = nsym
-    cfg['bw'] = bw; cfg['scs'] = scs; cfg['num_sc'] = num_sc; cfg['start_sc'] = start_sc
-    cfg['modorder'] = modorder; cfg['en_tprecode'] = en_tprecode; cfg['tone_idx'] = tone_idx
-    cfg['wola_len'] = wola_len
+    cfg = {
+        "fs": fs,                               # sampling rate (MHz)
+        "nfft": nfft,                           # FFT size
+        "ncp": ncp,                             # cyclic prefix length (samples)
+        "nrb": nrb,                             # number of resource blocks
+        "nsym": nsym,                           # number of symbols
+        "bw": bw,                               # BW (MHz)
+        "scs": scs,                             # SCS (kHz)
+        "num_sc": num_sc,                       # number of allocated subcarriers
+        "start_sc": start_sc,                   # starting subcarrier
+        "modorder": modorder,                   # modulation order
+        "en_tprecode": en_tprecode,             # enable transform precoding
+        "tone_idx": tone_idx,                   # allocated tone indices
+        "wola_len": wola_len,                   # WOLA length (samples)
+    }
 
-    return (x,x_standard,cfg)
+    return (x, x_standard, cfg)
 
-def generate_wola_window(wola_len,sym_len):
-    # sym_len = nfft+ncp
+class OFDMWavGen:
+    """
+    
+    """
+
+    def __init__(self):
+        self.a = 1
+    
+    def generate(self, nsym):
+        ""
+
+def generate_wola_window(wola_len, sym_len):
+    """
+    Generate a WOLA window
+
+    Parameters
+    ----------
+    wola_len: length of the window in samples (must be even)
+    sym_len: symbol length in samples
+
+    Returns
+    -------
+    b: time-domain window for the entire symbol (sym_len + wola_len)
+    
+    """
     
     if wola_len > 0:
-        b = signal.hann(2*wola_len)
+        b = signal.windows.hann(2*wola_len)
         b = np.concatenate((b[0:wola_len], np.ones(sym_len-wola_len), b[wola_len:]))
     else:
         b = np.ones(sym_len)
