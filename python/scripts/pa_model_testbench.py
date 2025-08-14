@@ -6,10 +6,11 @@ Test bench for generating a "realistic" PA model
 
 Assume APT mode needs to support up to 18dBm without saturating for a max PA bias of 3.5V
 
-@author: tsair
+@author: Ryan Tsai
 """
 
-import math
+from pathlib import Path
+Path().resolve().parent
 import numpy as np
 import matplotlib.pyplot as plt
 from IPython import get_ipython

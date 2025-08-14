@@ -53,7 +53,7 @@ def ofdm_wavgen(nsym: int=14, bw: int=10, scs: int=15,
         rng = np.random.default_rng()
     
     nrb = round(bw*5*15/scs) # max number of resource blocks
-    nfft = 2**np.ceil(np.log2(nrb*12)) # matural FFT size (osr=1)
+    nfft = (2**np.ceil(np.log2(nrb*12))).astype(np.uint).item() # matural FFT size (osr=1)
     nfft = nfft*osr # oversampling
     ncp = round(nfft*ncp/100) # number of samples for cyclic prefix
     sym_len = nfft+ncp # number of samples per symbol
@@ -123,13 +123,13 @@ class OFDMWavGen:
     nsym: number of symbols to generate
     bw: signal bandwidth (MHz)
     scs: subcarrier spacing (kHz)
-    num_sc: number of occupied subcarriers
+    num_sc: number of occupied subcarriers (leave as None to auto-calculate from start_sc)
     start_sc: starting subcarrier index
     modorder: modulation order (4, 16, 64, 256)
     en_tprecode: enable/disable transform precoding to switch b/w DFT-s-OFDM and CP-OFDM
     osr: oversampling ratio
-    ncp: cyclic prefix length as a fraction of FFT size
-    wola: WOLA length as a fraction of FFT size
+    ncp: cyclic prefix length as a percentage of FFT size
+    wola: WOLA length as a percentage of FFT size
     seed: RNG seed for repeatability
 
     Returns
@@ -140,19 +140,10 @@ class OFDMWavGen:
 
     """
 
-    def __init__(self, 
-                 bw: int,
-                 scs: int,
-                 modorder: int,
-                 start_sc: int,
-                 num_sc: int | None=None, # leave as None to auto-calculate
-                 en_tprecode: bool=False, 
-                 osr: int=1, 
-                 ncp: float=0.07, 
-                 wola: float=0.0):
+    def __init__(self, bw: int, scs: int, modorder: int, start_sc: int | None=None, num_sc: int | None=None, en_tprecode: bool=False, osr: int=1, ncp: float=7, wola: float=1):
         
         nrb = round(bw*5*15/scs) # max number of resource blocks
-        nfft = 2**np.ceil(np.log2(nrb*12)) # matural FFT size (osr=1)
+        nfft = (2**np.ceil(np.log2(nrb*12))).astype(np.uint).item() # matural FFT size (osr=1)
         nfft = nfft*osr # oversampling
         ncp = round(nfft*ncp/100) # number of samples for cyclic prefix
         sym_len = nfft+ncp # number of samples per symbol
@@ -162,15 +153,20 @@ class OFDMWavGen:
         wola_len = wola_len + (wola_len % 2) # needs to be even (half outside of symbol, half inside of symbol)
         wola_win = OFDMWavGen.generate_wola_window(wola_len, sym_len) # WOLA window (number of samples = wola_len + sum_len)
 
-        # Automatically calculate the number of subcarriers to allocate if none is provided
-        if num_sc is None:
+        # Automatically calculate the allocated subcarriers
+        if num_sc is None and start_sc is None: # if neither is provided, simply allocate all subcarriers
+            start_sc = 0
+            num_sc = nrb*12
+        elif start_sc is None: # if num_sc is provided but not start_sc, center the allocation
+            start_sc = round(nrb*12/2-num_sc/2)
+        elif num_sc is None: # if start_sc is provided but not num_sc, allocate all subcarriers to the right of start_sc
             num_sc = nrb*12 - start_sc
 
         # Mask indicating which tones are allocated, unallocated, and zero-padded
-        tone_idx = np.ones(self.nrb*12) # 1 = unallocated tones (IBE)
-        tone_idx[self.start_sc:self.start_sc+self.num_sc] = 2 # 2 = allocated tones (EVM, equalizer)
-        tone_idx = np.concatenate((np.zeros(round((self.nfft-self.nrb*12)/2)), tone_idx, np.zeros(round((self.nfft-self.nrb*12)/2)))) # 0 = zero-padded tones
-        tone_idx = np.concatenate((tone_idx[round(self.nfft/2):], tone_idx[0:round(self.nfft/2)]))
+        tone_idx = np.ones(nrb*12) # 1 = unallocated tones (IBE)
+        tone_idx[start_sc:start_sc+num_sc] = 2 # 2 = allocated tones (EVM, equalizer)
+        tone_idx = np.concatenate((np.zeros(round((nfft-nrb*12)/2)), tone_idx, np.zeros(round((nfft-nrb*12)/2)))) # 0 = zero-padded tones
+        tone_idx = np.concatenate((tone_idx[round(nfft/2):], tone_idx[0:round(nfft/2)]))
         
         self.bw = bw
         self.scs = scs

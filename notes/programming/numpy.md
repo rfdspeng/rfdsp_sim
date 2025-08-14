@@ -271,3 +271,16 @@ f(a)
 
 <u>_Case 2: View or Shallow Copy_</u>
 
+# NumPy fundamentals
+
+## Array creation
+
+## Indexing on `ndarray`
+
+## I/O with NumPy
+
+## Data types
+
+NumPy supports a much greater variety of numerical types than Python.
+
+NumPy numerical types are instances of `numpy.dtype` objects. 

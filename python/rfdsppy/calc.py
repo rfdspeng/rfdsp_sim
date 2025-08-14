@@ -4,13 +4,15 @@ Created on Wed May 25 14:46:47 2022
 
 General signal processing calculator functions
 
-TBD
-- ACLR calculator for single-carrier signals (right now it depends on SCS)
-- Compression calculator using binning (BAS? bin-average-smooth)
-- scale_psd - OFDM only right now
-
 @author: Ryan Tsai
 """
+
+# TODO ACLR calculator for single-carrier signals (right now it depends on SCS)
+# TODO Compression calculator using binning (BAS? bin-average-smooth)
+# TODO scale_psd - OFDM only right now
+# TODO SDE windowing - symmetric or no?
+# TODO propertly handle kwargs across functions
+
 
 import numpy as np
 from numpy import linalg
@@ -47,11 +49,11 @@ def aclr(x: np.ndarray, fs, bw, scs, en_plot=False):
 
     # Calculate high-side ACLR
     noisef = [bw-obw/2,bw+obw/2]
-    aclrp = noise_dbc(x,fs,rbw,sigf,noisef,cfg={'en_plot':en_plot,'title':"ACLR+"})
+    aclrp = noise_dbc(x, fs, rbw, sigf, noisef, cfg={'en_plot': en_plot, 'title':"ACLR+"})
 
     # Calculate low-side ACLR
     noisef = [-bw-obw/2,-bw+obw/2]
-    aclrm = noise_dbc(x,fs,rbw,sigf,noisef,cfg={'en_plot':en_plot,'title':"ACLR-"})
+    aclrm = noise_dbc(x, fs, rbw, sigf, noisef, cfg={'en_plot': en_plot,'title':"ACLR-"})
         
     return (aclrm, aclrp)
 
@@ -284,7 +286,8 @@ def psd(x: np.ndarray, fs, rbw, wintype='kaiser', **kwargs):
     x: time-domain signal (V)
     fs: sampling rate (MHz)
     rbw: desired resolution BW (MHz)
-    wintype: determines type of window to use on each segment
+    kwargs: for SDE windowing
+        - 'wintype'
 
     Returns
     -------
@@ -294,6 +297,12 @@ def psd(x: np.ndarray, fs, rbw, wintype='kaiser', **kwargs):
     """
     
     nfft = np.ceil(fs/rbw)
+
+    if not kwargs:
+        kwargs = {
+            "wintype": "kaiser",
+            "beta": 25,
+        }
     
     if wintype == 'kaiser':
         taps = signal.windows.kaiser(nfft, **kwargs)

@@ -1,2 +1,4 @@
 Interactive plots in Spyder: Change the backend from inline to something else
 Tools - Preferences - IPython console -> Graphics -> Graphics backend -> Qt5
+
+For windowing functions, for calculating PSD, should I set symmetric=False?
