@@ -70,18 +70,29 @@ def compare_freqz(bk: list[Union[ArrayLike, int, float]], ak: list[Union[ArrayLi
     worN = kwargs.get("worN", [4096]*len(bk))
     whole = kwargs.get("whole", [True]*len(bk))
     labels = kwargs.get("labels", [str(i) for i in range(len(bk))])
+    yscale = kwargs.get("yscale", "decibel") # 'decibel', 'linear'
     title = kwargs.get("title", "Freqz Plot")
 
     fig, axs = plt.subplots(dpi=150)
     for idx in range(len(bk)):
         w, h = signal.freqz(bk[idx], ak[idx], worN=worN[idx], whole=whole[idx])
-        w = fft.fftshift(w)
-        w[w >= np.pi] = w[w >= np.pi] - 2*np.pi
-        h = fft.fftshift(h)
-        axs.plot(w, np.abs(h), label=labels[idx])
+
+        if whole[idx]:
+            w = fft.fftshift(w)
+            w[w >= np.pi] = w[w >= np.pi] - 2*np.pi
+            h = fft.fftshift(h)
+
+        if yscale == 'decibel':
+            axs.plot(w, 20*np.log10(np.abs(h)), label=labels[idx])
+        elif yscale == 'linear':
+            axs.plot(w, np.abs(h), label=labels[idx])
     
+    axs.set_xlim(left=w.min(), right=w.max())
     axs.set_xlabel("Frequency (Rad/Sample)")
-    axs.set_ylabel("Magnitude")
+    if yscale == 'decibel':
+        axs.set_ylabel("Magnitude (dB)")
+    elif yscale == 'linear':
+        axs.set_ylabel("Magnitude")
     axs.grid()
     axs.legend()
     axs.set_title(title)
