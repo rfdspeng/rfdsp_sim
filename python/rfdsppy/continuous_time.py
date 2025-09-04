@@ -2,7 +2,7 @@
 """
 Created on Tues Aug 26 10:55:47 2025
 
-Functions for working with continuous-time signals
+Classes and functions for working with CT signals and systems
 
 @author: Ryan Tsai
 """
