@@ -22,6 +22,7 @@ def plot_freqz(bk: Union[ArrayLike, int, float], ak: Union[ArrayLike, int, float
 
     worN = kwargs.get("worN", 4096)
     whole = kwargs.get("whole", True)
+    yscale = kwargs.get("yscale", "decibel") # 'decibel', 'linear'
     title = kwargs.get("title", "Freqz Plot")
 
     w, h = signal.freqz(bk, ak, worN=worN, whole=whole)
@@ -36,8 +37,12 @@ def plot_freqz(bk: Union[ArrayLike, int, float], ak: Union[ArrayLike, int, float
     ymax2 = (ymin + ymax)/2 + (ymax - ymin)*0.55
 
     fig, axs = plt.subplots(nrows=2, ncols=2, sharex=True, dpi=150, figsize=(9, 6))
-    axs[0, 0].plot(w, np.abs(h))
-    axs[0, 0].set_ylabel("Magnitude")
+    if yscale == "decibel":
+        axs[0, 0].plot(w, 20*np.log10(np.abs(h)))
+        axs[0, 0].set_ylabel("Magnitude (dB)")
+    elif yscale == "linear":
+        axs[0, 0].plot(w, np.abs(h))
+        axs[0, 0].set_ylabel("Magnitude (Linear)")
     axs[0, 0].grid()
     axs[0, 0].set_xlim(left=-np.pi, right=np.pi)
     axs[0, 0].tick_params(labelbottom=True)
@@ -92,7 +97,7 @@ def compare_freqz(bk: list[Union[ArrayLike, int, float]], ak: list[Union[ArrayLi
     if yscale == 'decibel':
         axs.set_ylabel("Magnitude (dB)")
     elif yscale == 'linear':
-        axs.set_ylabel("Magnitude")
+        axs.set_ylabel("Magnitude (Linear)")
     axs.grid()
     axs.legend()
     axs.set_title(title)
