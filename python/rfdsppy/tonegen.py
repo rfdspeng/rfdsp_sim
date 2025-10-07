@@ -7,14 +7,10 @@ Functions to generate tones
 @author: Ryan Tsai
 """
 
-import math
 import numpy as np
-from scipy import signal
-from scipy import fft
-import matplotlib.pyplot as plt
-import calc
+from fractions import Fraction
 
-def tonegen(nsamp,fs,fc,cossin='cos',theta0=0):
+def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int | float | None=None):
     """
     Generates real or complex tone at fc with starting phase of theta0
     x = cos(wn + theta0) or sin(wn + theta0) or exp(j(wn + theta0))
@@ -35,14 +31,21 @@ def tonegen(nsamp,fs,fc,cossin='cos',theta0=0):
     
     # Convert theta0 from degrees to radians
     theta0 = theta0*np.pi/180
+
+    wc = 2*np.pi*fc/fs # convert from CT frequency to DT frequency (rad/sample)
+
+    # Auto-calculate nsamp if not provided - calculate nsamp to approximate one hundred periods of the sinusoid
+    if nsamp is None:
+        nsamp = Fraction(fc/fs).limit_denominator(2**16).denominator * 100
     
-    wc = np.pi*fc/(fs/2) # digital LO frequency in rad/s
-    n = np.array(range(nsamp))
+    n = np.arange(nsamp)
     if cossin == 'cos':
         x = np.cos(wc*n + theta0)
     elif cossin == 'sin':
         x = np.sin(wc*n + theta0)
     elif cossin == 'exp':
         x = np.exp(1j*(wc*n + theta0))
+    else:
+        raise Exception("'cossin' valid options are 'cos', 'sin', 'exp'")
 
     return x
