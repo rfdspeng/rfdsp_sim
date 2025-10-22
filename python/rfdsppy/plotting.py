@@ -14,6 +14,57 @@ import matplotlib.pyplot as plt
 from scipy import fft, signal
 import warnings
 
+def plot_freqs(bk: Union[ArrayLike, int, float], ak: Union[ArrayLike, int, float], **kwargs):
+    """
+    Can be used to plot FFT of signals (ak = 1) or LTI systems
+    Plot CTFT of CT signals (ak = 1) or LTI systems
+    
+    """
+
+    worN = kwargs.get("worN", 4096)
+    angular_freq = kwargs.get("angular_freq", False)
+    title = kwargs.get("title", "Freqs Plot")
+
+    w, h = signal.freqs(bk, ak, worN=worN)
+    if not angular_freq:
+        w = w/2/np.pi
+
+    h_re_imag = np.concatenate((h.real, h.imag))
+    ymin = h_re_imag.min()
+    ymax = h_re_imag.max()
+    ymin2 = (ymin + ymax)/2 - (ymax - ymin)*0.55
+    ymax2 = (ymin + ymax)/2 + (ymax - ymin)*0.55
+
+    fig, axs = plt.subplots(nrows=2, ncols=2, sharex=True, dpi=150, figsize=(12, 6))
+    axs[0, 0].semilogx(w, 20*np.log10(np.abs(h)))
+    axs[0, 0].set_ylabel("Magnitude (dB)")
+    axs[0, 0].grid()
+    axs[0, 0].set_xlim(left=w.min(), right=w.max())
+    axs[0, 0].tick_params(labelbottom=True)
+    axs[1, 0].semilogx(w, np.angle(h))
+    axs[1, 0].grid()
+    axs[1, 0].set_ylabel("Phase (Rad)")
+    if angular_freq:
+        axs[1, 0].set_xlabel("Frequency (Rad/Second)")
+    else:
+        axs[1, 0].set_xlabel("Frequency (Hz)")
+    axs[0, 1].plot(w, h.real)
+    axs[0, 1].set_ylabel("Real")
+    axs[0, 1].set_ylim(bottom=ymin2, top=ymax2)
+    axs[0, 1].grid()
+    axs[0, 1].tick_params(labelbottom=True)
+    axs[1, 1].plot(w, h.imag)
+    axs[1, 1].grid()
+    axs[1, 1].set_ylabel("Imaginary")
+    if angular_freq:
+        axs[1, 1].set_xlabel("Frequency (Rad/Second)")
+    else:
+        axs[1, 1].set_xlabel("Frequency (Hz)")
+    axs[1, 1].set_ylim(bottom=ymin2, top=ymax2)
+    fig.suptitle(title)
+
+    return (fig, axs)
+
 def plot_freqz(bk: Union[ArrayLike, int, float], ak: Union[ArrayLike, int, float], **kwargs):
     """
     Can be used to plot FFT of signals (ak = 1) or LTI systems
