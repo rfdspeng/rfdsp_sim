@@ -277,7 +277,7 @@ def power_dbm(x: np.ndarray, zo=50):
 
     return (p_avg, p_peak)
     
-def psd(x: np.ndarray, fs, rbw, wintype='kaiser', **kwargs):
+def psd(x: np.ndarray, fs, rbw, **kwargs):
     """
     Calculate PSD of a signal
     
@@ -299,10 +299,12 @@ def psd(x: np.ndarray, fs, rbw, wintype='kaiser', **kwargs):
     nfft = np.ceil(fs/rbw)
 
     if not kwargs:
-        kwargs = {
-            "wintype": "kaiser",
-            "beta": 25,
-        }
+        # kwargs = {
+        #     "wintype": "kaiser",
+        #     "beta": 25,
+        # }
+        wintype = 'kaiser'
+        kwargs = {"beta": 25}
     
     if wintype == 'kaiser':
         taps = signal.windows.kaiser(nfft, **kwargs)
