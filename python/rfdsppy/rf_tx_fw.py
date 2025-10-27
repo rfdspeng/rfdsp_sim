@@ -57,7 +57,7 @@ def gmp_kernel_matrix(x: np.ndarray, ktups: list[tuple]) -> tuple[np.ndarray, li
         
     return (kmat, kstr)
 
-def ila_dpd_training(x: np.ndarray, y: np.ndarray, kernels: list[tuple] | None=None) -> np.ndarray:
+def ila_dpd_training(x: np.ndarray, y: np.ndarray, kernels: list[tuple] | None=None):
     """
     DPD training using the inverse model
     
@@ -86,14 +86,14 @@ def ila_dpd_training(x: np.ndarray, y: np.ndarray, kernels: list[tuple] | None=N
 
     K, Kstr = gmp_kernel_matrix(y, kernels)
 
-    KHK = K.conjugate().transpose() @ K
+    # KHK = K.conjugate().transpose() @ K
     # L = np.linalg.cholesky(KHK)
-    c = np.linalg.pinv(KHK)*x
+    c = np.linalg.pinv(K) @ x
 
-    env2 = x*x.conjugate
+    env2 = x*x.conjugate()
 
     # Hardcoded
     # Returns the predistorted signal - TBD: return LUT instead
     x_dpd = x*(c[0] + c[1]*env2 + c[2]*env2**2 + c[3]*env2**3 + c[4]*env2**4)
 
-    return x_dpd
+    return (x_dpd.squeeze(), Kstr)
