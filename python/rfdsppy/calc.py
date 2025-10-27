@@ -81,8 +81,8 @@ def comp_db(x: np.ndarray, y: np.ndarray, cfg: dict | None = None):
     cfg = cfg if cfg else {}
 
     # Reshape to column vectors
-    x = x.reshape(x.size,1)
-    y = y.reshape(y.size,1)
+    x = x.reshape(x.size, 1, copy=True)
+    y = y.reshape(y.size, 1, copy=True)
     
     # Preprocess vectors
     x = x-x.mean()
@@ -94,7 +94,7 @@ def comp_db(x: np.ndarray, y: np.ndarray, cfg: dict | None = None):
     ks = cfg.get("polyorders", range(1,10))
     X = np.empty((len(x), len(ks)))
     for idx, k in enumerate(ks):
-        X[:, idx] = x**k
+        X[:, idx] = (x**k).squeeze()
     
     # Polynomial coefficient estimation
     # c = np.matmul(linalg.pinv(X), y)
@@ -248,7 +248,7 @@ def papr(x: np.ndarray, p=99.99):
     # Calculate power (envelope^2) and sort from small to large. Works for both complex and real signals.
     env2 = np.sort((x*x.conj()).real)
     avg_power = env2.mean()
-    peak_power = env2[np.ceil(env2.size*p/100).round()]
+    peak_power = env2[np.ceil(env2.size*p/100).astype(int)]
     papr = 10*np.log10(peak_power/avg_power)
     
     return papr
