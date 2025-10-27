@@ -10,6 +10,13 @@ Functions and classes for modeling RF Tx digital front end
 import numpy as np
 
 class TxIQMC:
+    """
+    class TxIQMC
+
+    Tx frequency-independent IQ mismatch compensation
+
+    """
+    
     def __init__(self, ep, theta):
         """
         ep = gain mismatch (linear)
