@@ -209,7 +209,7 @@ class OFDMWavGen:
             
         return b
     
-    def generate(self, nsym: int, seed: int | None=None) -> tuple[np.ndarray, np.ndarray]:
+    def generate(self, nsym: int, seed: int | None=None, power: float | None=None) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate an OFDM waveform
 
@@ -217,6 +217,7 @@ class OFDMWavGen:
         ----------
         nsym: number of symbols
         seed: RNG seed. Provide an integer for repeatability (default is None).
+        power: power in 50Ohm system (dBm). This is power for the complex baseband signal.
 
         Returns
         -------
@@ -250,6 +251,10 @@ class OFDMWavGen:
             sym_wola = sym_wola * self.wola_win
             x[sdx*self.sym_len:(sdx+1)*self.sym_len+self.wola_len] = sym_wola + x[sdx*self.sym_len:(sdx+1)*self.sym_len+self.wola_len]
         
+        if power is not None:
+            vrms = calc.dbm2v(power, "dBm")
+            x = x/calc.rms(x)*vrms
+
         return (x, x_standard)
     
     def calculate_evm(self, x: np.ndarray, y: np.ndarray, en_fd_eq=False, en_plot=False, title="Constellation"):

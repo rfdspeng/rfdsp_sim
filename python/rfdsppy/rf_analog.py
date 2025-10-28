@@ -2,13 +2,46 @@
 """
 Created on Fri Oct 24 2025
 
-Functions and classes for modeling RF Tx analog blocks
+Functions and classes for modeling RF analog blocks and impairments
 
 @author: Ryan Tsai
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+from rfdsppy import calc
+
+class AWGN:
+    """
+    class AWGN
+
+    Can generate either real or complex noise
+    
+    """
+
+    def __init__(self, power, bw, fs):
+        """
+        power: power in a 50Ohm system (dBm). This is power within the signal bandwidth.
+        bw: signal bandwidth (MHz)
+        fs: sampling rate (MHz)
+        
+        If the input signal to transform() is real, then the noise generated is real.
+        If the input signal to transform() is complex, then the noise generated is complex, and the power is divided between I and Q.
+        
+        """
+
+        self.rng = np.random.default_rng()
+        self.vrms = calc.dbm2v(power, unit="dBm")*np.sqrt(fs/bw)
+
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        if np.iscomplexobj(x):
+            n = self.rng.normal(loc=0, scale=self.vrms/np.sqrt(2), size=x.size) + \
+                1j*self.rng.normal(loc=0, scale=self.vrms/np.sqrt(2), size=x.size)
+        else:
+            n = self.rng.normal(loc=0, scale=self.vrms, size=x.size)
+
+        return x + n
+
 
 class IQUpconverter:
     """
