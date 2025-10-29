@@ -180,3 +180,21 @@ class RappSaleh:
         y = env_y*np.exp(1j*ph)*np.exp(1j*ampm)
 
         return y
+
+class IP2_IP3_Nonlinearity:
+    """
+    Receiver model
+    
+    """
+
+    def __init__(self, IIP2, IIP3):
+        """
+        IIP2: in dBm (power of one tone)
+        IIP3: in dBm (power of one tone)
+        
+        
+        """
+        
+
+        self.IIP2 = IIP2
+        self.IIP3 = IIP3
