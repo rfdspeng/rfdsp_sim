@@ -16,10 +16,11 @@ from scipy import fft
 from typing import Literal
 
 class NotchFilter:
-    def __init__(self, w0, r, sim_type: Literal["lfilter", "sample-by-sample"]="lfilter", bitwidth: int | bool = False):
+    def __init__(self, w0, r, sim_type: Literal["lfilter", "sample-by-sample"]="lfilter", Nest: int | float | bool=False, bitwidth: int | float | bool = False):
         self.w0 = w0
         self.r = r
         self.sim_type = sim_type
+        self.Nest = Nest
         self.bitwidth = bitwidth # Not currently supported
 
         self.b_ = [1, -np.exp(1j*w0)]
@@ -28,8 +29,19 @@ class NotchFilter:
     def hw_process(self, x: np.ndarray) -> np.ndarray:
         y = np.zeros_like(x)
         reg = 0 + 0j
+        # if self.Nest:
+        #     acc = 0 + 0j
+        #     for idx in range(self.Nest):
+        #         acc = x[idx] + acc*np.exp(1j*self.w0)
+        #     acc = acc/self.Nest
+        #     reg = acc/(1-self.r)
+        if self.Nest:
+            for idx in range(self.Nest):
+                reg = x[idx] + reg*np.exp(1j*self.w0)
+            reg = reg/self.Nest/(1-self.r)
 
-        for idx in range(len(y)):
+        start_idx = 0 if self.Nest == False else self.Nest
+        for idx in range(start_idx, len(y)):
             y[idx] = x[idx] + reg*self.r*np.exp(1j*self.w0) + reg*-1*np.exp(1j*self.w0)
             reg = x[idx] + reg*self.r*np.exp(1j*self.w0)
         
