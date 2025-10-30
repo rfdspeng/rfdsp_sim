@@ -75,13 +75,21 @@ def firls_rate_change(updn: Literal["up", "down"], ntaps, obw, fs_in, R, passban
     print('\n\n')
     
     if en_plot:
-        plt.figure()
-        plt.plot(w, 20*np.log10(abs(h)))
-        plt.title("digital_filter_design.firls_rate_change()", {'fontsize':40})
-        plt.xlabel("Normalized Digital Frequency", {'fontsize':30})
-        plt.ylabel("Magnitude Response (dB)", {'fontsize':30})
-        plt.xticks(fontsize=20)
-        plt.yticks(fontsize=20)
-        plt.grid()
+        # plt.figure()
+        # plt.plot(w, 20*np.log10(abs(h)))
+        # plt.title("digital_filter_design.firls_rate_change()", {'fontsize':40})
+        # plt.xlabel("Normalized Digital Frequency", {'fontsize':30})
+        # plt.ylabel("Magnitude Response (dB)", {'fontsize':30})
+        # plt.xticks(fontsize=20)
+        # plt.yticks(fontsize=20)
+        # plt.grid()
+
+        fig, axs = plt.subplots(nrows=2, dpi=150)
+        axs[0].plot(w, 20*np.log10(np.abs(h)))
+        axs[1].plot(w, np.angle(h))
+        axs[0].set_title("Magnitude Response (dB)")
+        axs[1].set_title("Phase Response (rad)")
+        axs[0].grid()
+        axs[1].grid()
 
     return b

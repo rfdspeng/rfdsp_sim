@@ -14,6 +14,16 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import fft
 
+class NotchFilter:
+    def __init__(self, w0, r):
+        self.w0 = w0
+        self.r = r
+        self.b_ = [1, -np.exp(1j*w0)]
+        self.a_ = [1, -r*np.exp(1j*w0)]
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        return signal.lfilter(self.b_, self.a_, x)
+
 def polyphase_downsampler(x: np.ndarray, b, R, frac_bits: int | float | bool = False):
     """
     Description
