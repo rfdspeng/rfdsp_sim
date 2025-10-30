@@ -13,16 +13,33 @@ from numpy import linalg
 import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import fft
+from typing import Literal
 
 class NotchFilter:
-    def __init__(self, w0, r):
+    def __init__(self, w0, r, sim_type: Literal["lfilter", "sample-by-sample"]="lfilter", bitwidth: int | bool = False):
         self.w0 = w0
         self.r = r
+        self.sim_type = sim_type
+        self.bitwidth = bitwidth # Not currently supported
+
         self.b_ = [1, -np.exp(1j*w0)]
         self.a_ = [1, -r*np.exp(1j*w0)]
     
+    def hw_process(self, x: np.ndarray) -> np.ndarray:
+        y = np.zeros_like(x)
+        reg = 0 + 0j
+
+        for idx in range(len(y)):
+            y[idx] = x[idx] + reg*self.r*np.exp(1j*self.w0) + reg*-1*np.exp(1j*self.w0)
+            reg = x[idx] + reg*self.r*np.exp(1j*self.w0)
+        
+        return y
+    
     def transform(self, x: np.ndarray) -> np.ndarray:
-        return signal.lfilter(self.b_, self.a_, x)
+        if self.sim_type == "lfilter":
+            return signal.lfilter(self.b_, self.a_, x)
+        elif self.sim_type == "sample-by-sample":
+            return self.hw_process(x)
 
 def polyphase_downsampler(x: np.ndarray, b, R, frac_bits: int | float | bool = False):
     """
