@@ -2,7 +2,7 @@
 """
 Created on Mon Nov 27 09:55:56 2023
 
-Functions to mimic digital hardware
+Functions and classes for modeling RF Rx/FBRx digital front end
 
 @author: Ryan Tsai
 """
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from scipy import signal
 from scipy import fft
 
-def polyphase_downsampler(x,b,frac_bits,R):
+def polyphase_downsampler(x: np.ndarray, b, R, frac_bits: int | float | bool = False):
     """
     Description
     -----------
@@ -24,7 +24,7 @@ def polyphase_downsampler(x,b,frac_bits,R):
     ----------
     x : input signal
     b : prototype filter coefficients
-    frac_bits : fractional bitwidth for normalization (0 means floating point)
+    frac_bits : fractional bitwidth for normalization (0/False means floating point)
     R : integer downsampling ratio
 
     Returns
@@ -35,9 +35,9 @@ def polyphase_downsampler(x,b,frac_bits,R):
     
     # Generate branches
     branch_len = math.ceil(len(b)/R)
-    b_pp = np.zeros((R,branch_len))
+    b_pp = np.zeros((R, branch_len))
     gd = int((len(b)-1)/2)
-    b = np.concatenate((b,np.zeros(b_pp.size-len(b)+1)))
+    b = np.concatenate((b, np.zeros(b_pp.size-len(b)+1)))
     for branch in range(R):
         b_pp[branch,:] = b[branch:-1:R]
     
@@ -46,12 +46,12 @@ def polyphase_downsampler(x,b,frac_bits,R):
     y = np.zeros(math.floor(len(x)/R)) + 1j*np.zeros(math.floor(len(x)/R))
     
     # Zero pad the input signal
-    x = np.concatenate((np.zeros(len(reg_in)-1),x,np.zeros(gd)))
+    x = np.concatenate((np.zeros(len(reg_in)-1), x, np.zeros(gd)))
     
     branch = 0 # branch index
     y_br = np.zeros(R) + 1j*np.zeros(R) # branch outputs
     ydx = 0 # output index
-    for x_end in range(len(reg_in)-1,len(x)):
+    for x_end in range(len(reg_in)-1, len(x)):
         # Update input tapped delay line
         reg_in[:] = np.flip(x[x_end-len(reg_in)+1:x_end+1])
         x_tapped = reg_in[0:-1:R]
@@ -69,7 +69,8 @@ def polyphase_downsampler(x,b,frac_bits,R):
         if branch == 0:
             y[ydx] = sum(y_br)
             if frac_bits > 0:
-                y[ydx] = round(y[ydx]/2**frac_bits)
+                # y[ydx] = round(y[ydx]/2**frac_bits)
+                y[ydx] = (y[ydx]/2**frac_bits).round()
             ydx += 1
         
         # Update branch
