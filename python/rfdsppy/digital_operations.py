@@ -2,12 +2,18 @@
 """
 Created on Thurs Sep 4 09:42 2025
 
-Classes and functions for working with DT signals and systems
+Classes and functions for working with digital signals and systems
 
 @author: Ryan Tsai
 """
 
 import numpy as np
+
+def round(x: float | int | np.ndarray):
+    pass
+
+def sat(x: float | int | np.ndarray):
+    pass
 
 def upsample(x: np.ndarray, M: int | float) -> np.ndarray:
     """
