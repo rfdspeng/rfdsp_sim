@@ -131,6 +131,8 @@ class OFDMWavGen:
     ncp: cyclic prefix length as a percentage of FFT size
     wola: WOLA length as a percentage of FFT size
     seed: RNG seed for repeatability
+    power: power in a 50Ohm system (dBm) OR setpoint (-dBFS) if fixed-point
+    bitwidth: if an integer, then it is the signed bitwidth for the fixed-point signal. Otherwise, generate a floating-point signal.
 
     Returns
     -------
@@ -140,7 +142,8 @@ class OFDMWavGen:
 
     """
 
-    def __init__(self, bw: int, scs: int, modorder: int, start_sc: int | None=None, num_sc: int | None=None, en_tprecode: bool=False, osr: int=1, ncp: float=7, wola: float=1):
+    def __init__(self, bw: int, scs: int, modorder: int, start_sc: int | None=None, num_sc: int | None=None, en_tprecode: bool=False, 
+                 osr: int=1, ncp: float=7, wola: float=1, seed: int | None=None, power: float | None=None, bitwidth: bool | int = False):
         
         nrb = round(bw*5*15/scs) # max number of resource blocks
         nfft = (2**np.ceil(np.log2(nrb*12))).astype(np.uint).item() # matural FFT size (osr=1)
@@ -184,6 +187,14 @@ class OFDMWavGen:
         self.sym_len = sym_len
         self.wola_len = wola_len
         self.wola_win = wola_win
+
+        if seed:
+            self.rng = np.random.default_rng(seed)
+        else:
+            self.rng = np.random.default_rng()
+        
+        self.power = power
+        self.bitwidth = bitwidth
     
     @staticmethod
     def generate_wola_window(wola_len, sym_len):
@@ -209,7 +220,7 @@ class OFDMWavGen:
             
         return b
     
-    def generate(self, nsym: int, seed: int | None=None) -> tuple[np.ndarray, np.ndarray]:
+    def generate(self, nsym: int) -> tuple[np.ndarray, np.ndarray]:
         """
         Generate an OFDM waveform
 
@@ -217,6 +228,7 @@ class OFDMWavGen:
         ----------
         nsym: number of symbols
         seed: RNG seed. Provide an integer for repeatability (default is None).
+        power: power in 50Ohm system (dBm). This is power for the complex baseband signal.
 
         Returns
         -------
@@ -224,15 +236,11 @@ class OFDMWavGen:
         x_standard: a "standard" waveform without WOLA; use for calculating EVM
         
         """
-        if seed:
-            rng = np.random.default_rng(seed)
-        else:
-            rng = np.random.default_rng()
 
         x_standard = np.zeros(nsym*self.sym_len) + 1j*np.zeros(nsym*self.sym_len) # no WOLA
         x = np.zeros(nsym*self.sym_len+self.wola_len) + 1j*np.zeros(nsym*self.sym_len+self.wola_len) # with WOLA
         for sdx in range(nsym):
-            bitstream = rng.random(self.bps*self.num_sc).round() # bits
+            bitstream = self.rng.random(self.bps*self.num_sc).round() # bits
             tones = modulation_mapper(bitstream, self.modorder) # convert from bits to modulated tones
             if self.en_tprecode: # transform precoding
                 tones = fft.fft(tones)
@@ -250,6 +258,18 @@ class OFDMWavGen:
             sym_wola = sym_wola * self.wola_win
             x[sdx*self.sym_len:(sdx+1)*self.sym_len+self.wola_len] = sym_wola + x[sdx*self.sym_len:(sdx+1)*self.sym_len+self.wola_len]
         
+        if (self.bitwidth == False) and (self.power is not None):
+            vrms = calc.dbm2v(self.power, "dBm")
+            x = x/calc.rms(x)*vrms
+        
+        if self.bitwidth:
+            if self.power is not None:
+                x = x/calc.rms(x)*10**(self.power/20)
+            else:
+                x = x/np.abs(x).max()
+
+            x = np.round(x*(2**(self.bitwidth-1)-1))
+
         return (x, x_standard)
     
     def calculate_evm(self, x: np.ndarray, y: np.ndarray, en_fd_eq=False, en_plot=False, title="Constellation"):

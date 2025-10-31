@@ -9,8 +9,9 @@ Functions to generate tones
 
 import numpy as np
 from fractions import Fraction
+from rfdsppy import calc
 
-def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int | float | None=None):
+def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int | float | None=None, power: int | float | None=None):
     """
     Generates real or complex tone at fc with starting phase of theta0
     x = cos(wn + theta0) or sin(wn + theta0) or exp(j(wn + theta0))
@@ -22,6 +23,7 @@ def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int
     fc : tone frequency
     cossin : 'cos', 'sin', or 'exp'
     theta0 : starting phase in degrees
+    power : power in a 50Ohm system (dBm)
 
     Returns
     -------
@@ -47,5 +49,9 @@ def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int
         x = np.exp(1j*(wc*n + theta0))
     else:
         raise Exception("'cossin' valid options are 'cos', 'sin', 'exp'")
+
+    if power is not None:
+        vrms = calc.dbm2v(power, unit="dBm")
+        x = x/calc.rms(x)*vrms
 
     return x
