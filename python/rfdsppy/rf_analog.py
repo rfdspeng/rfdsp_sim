@@ -75,20 +75,23 @@ class PhaseNoise:
         # One-sided PSD
         # f = np.linspace(0, self.fs/2, x.size+2 + (x.size+1)%2)[1:]
         f = np.linspace(0, self.fs/2, math.ceil(x.size/2)+2 + (math.ceil(x.size/2)+1)%2)[1:]
+        l0_lin = 10**(self.l0/10)
+        lfloor_lin = 10**(self.lfloor/10)
         fbin = (f[1]-f[0])*1e6 # Hz
-        l0_lin = 10**(self.l0/10)*fbin
-        lfloor_lin = 10**(self.lfloor)*fbin
+        # l0_lin = 10**(self.l0/10)*fbin
+        # lfloor_lin = 10**(self.lfloor/10)*fbin
         P = self.bpll**2*l0_lin/(self.bpll**2 + f**2)*(1+self.fcorner/f) + lfloor_lin
         phi = self.rng.uniform(low=-np.pi, high=np.pi, size=P.size)
 
         # FT
-        F = np.concatenate(([1], np.sqrt(P[:-1]/2), np.sqrt(P[::-1]/2)))
+        F = np.concatenate(([0], np.sqrt(fbin*P[:-1]/2), np.sqrt(fbin*P[::-1]/2)))
         phi2 = np.concatenate(([0], np.exp(1j*phi[:-1]), np.exp(-1j*phi[::-1])))
-        F = F*phi2
+        F = F*phi2*F.size
 
         # IFFT
         theta = scipy.fft.ifft(F)
         theta = theta.real
+        # theta = theta*4343*np.sqrt(1000)
 
         self.theta_ = theta
         self.P_ = P
@@ -96,7 +99,7 @@ class PhaseNoise:
         self.F_ = F
         self.Ff_ = np.linspace(0, self.fs, F.size)
 
-        return x*np.exp(1j*theta[:x.size])      
+        return x*np.exp(1j*theta[:x.size])
 
 class IQUpconverter:
     """
