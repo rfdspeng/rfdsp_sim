@@ -8,6 +8,7 @@ Functions and classes for modeling RF Tx digital front end
 """
 
 import numpy as np
+from typing import Literal
 
 class TxIQMC:
     """
@@ -17,7 +18,7 @@ class TxIQMC:
 
     """
     
-    def __init__(self, ep, theta):
+    def __init__(self, ep, theta, mode: Literal["balanced", "one-sided"]="balanced"):
         """
         ep = gain mismatch (linear)
         theta = phase mismatch (radians)
@@ -29,15 +30,23 @@ class TxIQMC:
 
         self.ep = ep
         self.theta = theta
-    
-    # def fit(self):
-        self.gii_ = 1/((1+self.ep/2)*np.cos(self.theta/2)*(1-np.tan(self.theta/2)**2))
-        self.gqi_ = self.gii_*-np.tan(self.theta/2)
-        self.gqq_ = 1/((1-self.ep/2)*np.cos(self.theta/2)*(1-np.tan(self.theta/2)**2))
-        self.giq_ = self.gqq_*-np.tan(self.theta/2)
+        self.mode = mode
+
+        if self.mode == "balanced":
+            self.gii_ = 1/((1+self.ep/2)*np.cos(self.theta/2)*(1-np.tan(self.theta/2)**2))
+            self.gqi_ = self.gii_*-np.tan(self.theta/2)
+            self.gqq_ = 1/((1-self.ep/2)*np.cos(self.theta/2)*(1-np.tan(self.theta/2)**2))
+            self.giq_ = self.gqq_*-np.tan(self.theta/2)
+        elif self.mode == "one-sided":
+            self.gii_ = 1/((1+self.ep)*np.cos(self.theta))
+            self.giq_ = -np.tan(self.theta)
         
     def transform(self, x: np.ndarray) -> np.ndarray:
-        I = self.gii_*x.real + self.gqi_*x.imag
-        Q = self.gqq_*x.imag + self.giq_*x.real
+        if self.mode == "balanced":
+            I = self.gii_*x.real + self.gqi_*x.imag
+            Q = self.gqq_*x.imag + self.giq_*x.real
+        elif self.mode == "one-sided":
+            I = self.gii_*x.real
+            Q = x.imag +self.giq_*x.real
 
         return I + 1j*Q

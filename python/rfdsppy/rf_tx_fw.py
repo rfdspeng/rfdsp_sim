@@ -9,6 +9,12 @@ Functions and classes for modeling Tx DSP and FW algorithms
 
 import numpy as np
 
+def spdft():
+    pass
+
+def tx_iq_mm_est():
+    pass
+
 def gmp_kernel_matrix(x: np.ndarray, ktups: list[tuple]) -> tuple[np.ndarray, list[str]]:
     """
     Generate kernel matrix for DPD training

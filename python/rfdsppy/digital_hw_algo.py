@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thurs Sep 4 09:42 2025
+Created on Mon Nov 3 2025
 
-Classes and functions for working with digital signals and systems
+Functions and classes for modeling generic digital hardware algorithms
+and operations
 
 @author: Ryan Tsai
 """
@@ -14,6 +15,10 @@ def round(x: float | int | np.ndarray):
 
 def sat(x: float | int | np.ndarray):
     pass
+
+class RoundSat:
+    def __init__(self):
+        pass
 
 def upsample(x: np.ndarray, M: int | float) -> np.ndarray:
     """
@@ -45,3 +50,7 @@ def downsample(x: np.ndarray, M: int | float) -> np.ndarray:
     assert x.ndim == 1, "Input vector should be 1-dimensional"
 
     return x[::M].copy()
+
+class CORDIC:
+    def __init__(self, niter):
+        pass

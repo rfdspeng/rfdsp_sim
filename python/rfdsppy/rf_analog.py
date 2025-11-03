@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from rfdsppy import calc
 import scipy.fft
 import math
+from typing import Literal
 
 class AWGN:
     """
@@ -108,7 +109,7 @@ class IQUpconverter:
     Lowpass equivalent model of quadrature upconverter
     
     """
-    def __init__(self, theta=0, ep=0):
+    def __init__(self, theta=0, ep=0, mode: Literal["balanced", "one-sided"]="balanced"):
         """
         theta = IQ phase mismatch in radians
         ep = IQ gain mismatch (linear)
@@ -116,10 +117,14 @@ class IQUpconverter:
         """
         self.theta = theta
         self.ep = ep
+        self.mode = mode
     
-    # def fit(self):
-        self.LO_I_ = (1 + self.ep/2)*np.exp(1j*self.theta/2)
-        self.LO_Q_ = -1j*(1 - self.ep/2)*np.exp(-1j*self.theta/2)
+        if self.mode == "balanced":
+            self.LO_I_ = (1 + self.ep/2)*np.exp(1j*self.theta/2)
+            self.LO_Q_ = -1j*(1 - self.ep/2)*np.exp(-1j*self.theta/2)
+        elif self.mode == "one-sided":
+            self.LO_I_ = (1 + self.ep)*np.exp(1j*self.theta)
+            self.LO_Q_ = -1j
     
     def transform(self, x: np.ndarray) -> np.ndarray:
         return x.real*self.LO_I_ - x.imag*self.LO_Q_

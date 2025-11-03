@@ -368,8 +368,8 @@ class OFDMWavGen:
             tonesvx = tonesvx[0]; tonesvy = tonesvy[0]
             
             fig = plt.figure()
-            plt.plot(tonesvx.real, tonesvx.imag, 'x', markersize=50)
-            plt.plot(tonesvy.real, tonesvy.imag, 'x', markersize=25)
+            plt.plot(tonesvx.real, tonesvx.imag, 'x', markersize=5)
+            plt.plot(tonesvy.real, tonesvy.imag, 'x', markersize=5)
             plt.title(title, {'fontsize':40})
             plt.xticks(fontsize=20)
             plt.yticks(fontsize=20)
