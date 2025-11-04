@@ -134,16 +134,21 @@ class CORDIC:
         
     """
 
-    def __init__(self, N, mode: Literal["vectoring", "rotation"], sim_type: Literal["vectorized", "hardware"]="vectorized"):
+    def __init__(self, N, mode: Literal["vectoring", "rotation"], sim_type: Literal["vectorized", "hardware"]="vectorized", theta: np.ndarray | None=None):
         """
         N = number of iterations
         mode = vectoring or rotation
+        theta = for rotation mode only.
+            For polar-rect conversion, set to None. Each sample is (env, ph), and env + 0j is rotated by exp(1j*ph)
+            For phase/frequency shift, set to desired phase shift per sample (constant for phase shift, accumulated for frequency shift).
+                Each sample is (env, ph), but this is actually rectangular coordinates (I, Q).
 
         """
 
         self.N = N
         self.mode = mode
         self.sim_type = sim_type
+        self.theta = theta
 
         self.K_ = np.prod(1/np.sqrt(1+2**(-2*np.arange(N, dtype="float"))))
         self.theta_i_ = CORDIC.get_rotation_angles(N)
@@ -183,8 +188,36 @@ class CORDIC:
             return (env*self.K_, ph)
 
         elif self.mode == "rotation":
-            env = I.copy()
-            ph = Q.copy()
+            # if self.theta is None:
+            #     # Polar-to-rectangular conversion
+            #     env = I.copy()
+            #     ph = Q.copy()
+                
+            #     ph = np.mod(ph, 2*np.pi) # wrap to 0 to 2*pi
+            #     ph[ph >= np.pi] = ph[ph >= np.pi] - 2*np.pi # wrap to -pi, pi
+            #     self.final_multiply_ = np.ones(ph.size)
+            #     self.final_multiply_[np.logical_or(ph < -np.pi/2, ph > np.pi/2)] = -1
+            #     ph[ph < -np.pi/2] = ph[ph < -np.pi/2] + np.pi
+            #     ph[ph > np.pi/2] = ph[ph > np.pi/2] - np.pi
+            #     self.err_ = ph
+
+            #     I = env.reshape((1, env.size))
+            #     Q = np.zeros_like(I)
+            #     IQ = np.vstack((I, Q))
+            # else:
+            #     I = I.copy()
+            #     Q = Q.copy()
+            #     ph = self.theta
+            
+            if self.theta is not None:
+                # Phase or frequency shift
+                I = I.copy()
+                Q = Q.copy()
+                ph = self.theta.copy()
+            else:
+                # Polar-to-rectangular conversion
+                env = I.copy()
+                ph = Q.copy()
             
             ph = np.mod(ph, 2*np.pi) # wrap to 0 to 2*pi
             ph[ph >= np.pi] = ph[ph >= np.pi] - 2*np.pi # wrap to -pi, pi
@@ -194,8 +227,10 @@ class CORDIC:
             ph[ph > np.pi/2] = ph[ph > np.pi/2] - np.pi
             self.err_ = ph
 
-            I = env.reshape((1, env.size))
-            Q = np.zeros_like(I)
+            if self.theta is None:
+                I = env.reshape((1, env.size))
+                Q = np.zeros_like(I)
+            
             IQ = np.vstack((I, Q))
             I, Q = self.rotation(IQ)
 
