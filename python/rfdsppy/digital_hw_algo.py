@@ -145,7 +145,7 @@ class CORDIC:
         self.mode = mode
         self.sim_type = sim_type
 
-        self.K_ = np.prod(1/np.sqrt(1+2**(-2*np.arange(N))))
+        self.K_ = np.prod(1/np.sqrt(1+2**(-2*np.arange(N, dtype="float"))))
         self.theta_i_ = CORDIC.get_rotation_angles(N)
 
         self.rot_mat_p_ = [np.array([[1, -1/2**idx],[1/2**idx, 1]]) for idx in range(N)]
@@ -173,14 +173,14 @@ class CORDIC:
 
             self.theta_acc_[I < 0] = np.pi
             Q[I < 0] = -1*Q[I < 0]
-            Q[I < 0] = -1*I[I < 0]
+            I[I < 0] = -1*I[I < 0]
 
             I = I.reshape((1, I.size))
             Q = Q.reshape((1, Q.size))
             IQ = np.vstack((I, Q))
             env, ph = self.vectoring(IQ)
 
-            return (env, ph)
+            return (env*self.K_, ph)
 
         elif self.mode == "rotation":
             env = I.copy()
@@ -199,7 +199,7 @@ class CORDIC:
             IQ = np.vstack((I, Q))
             I, Q = self.rotation(IQ)
 
-            return (I, Q)
+            return (I*self.K_, Q*self.K_)
 
     def vectoring(self, IQ):
         """
@@ -213,8 +213,8 @@ class CORDIC:
         if self.sim_type == "vectorized":
             for i in range(self.N):
                 y_sign = np.sign(IQ[1,:])
-                IQp = self.rot_mat_p_ @ IQ
-                IQm = self.rot_mat_m_ @ IQ
+                IQp = self.rot_mat_p_[i] @ IQ
+                IQm = self.rot_mat_m_[i] @ IQ
                 IQ[:, y_sign == -1] = IQp[:, y_sign == -1]
                 IQ[:, y_sign == +1] = IQm[:, y_sign == +1]
                 # IQ[:, y_sign == 0] Do nothing, you've converged
@@ -240,8 +240,8 @@ class CORDIC:
         if self.sim_type == "vectorized":
             for i in range(self.N):
                 err_sign = np.sign(self.err_)
-                IQp = self.rot_mat_p_ @ IQ
-                IQm = self.rot_mat_m_ @ IQ
+                IQp = self.rot_mat_p_[i] @ IQ
+                IQm = self.rot_mat_m_[i] @ IQ
                 IQ[:, err_sign == 1] = IQp[:, err_sign == 1]
                 IQ[:, err_sign == -1] = IQm[:, err_sign == -1]
                 # IQ[:, err_sign == 0] Do nothing, you've converged
