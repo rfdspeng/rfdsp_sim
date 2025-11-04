@@ -189,7 +189,7 @@ class CORDIC:
             ph = np.mod(ph, 2*np.pi) # wrap to 0 to 2*pi
             ph[ph >= np.pi] = ph[ph >= np.pi] - 2*np.pi # wrap to -pi, pi
             self.final_multiply_ = np.ones(ph.size)
-            self.final_multiply_[(ph < -np.pi/2) and (ph > np.pi/2)] = -1
+            self.final_multiply_[np.logical_or(ph < -np.pi/2, ph > np.pi/2)] = -1
             ph[ph < -np.pi/2] = ph[ph < -np.pi/2] + np.pi
             ph[ph > np.pi/2] = ph[ph > np.pi/2] - np.pi
             self.err_ = ph
@@ -222,7 +222,7 @@ class CORDIC:
                 self.theta_acc_ = self.theta_acc_ + -1*y_sign*self.theta_i_[i]
             
             env = IQ[0, :]
-            ph = self.theta_acc_.copy()
+            ph = -self.theta_acc_.copy()
         elif self.sim_type == "hardware":
             pass
         
