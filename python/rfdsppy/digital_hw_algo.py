@@ -289,3 +289,25 @@ class CORDIC:
             pass
 
         return (I, Q)
+
+class SPDFT:
+    """
+    Single-point DFT for estimating amplitude/phase at a single frequency
+
+    """
+
+    def __init__(self, w0, sim_type: Literal["vectorized", "hardware"]="vectorized"):
+        """
+        w0 = digital frequency (radians/sample)
+        
+        """
+
+        self.w0 = w0
+        self.sim_type = sim_type
+    
+    def transform(self, x: np.ndarray):
+        if self.sim_type == "vectorized":
+            return (x*np.exp(-1j*self.w0*np.arange(x.size, dtype="float"))).sum()
+        
+        elif self.sim_type == "hardware":
+            pass

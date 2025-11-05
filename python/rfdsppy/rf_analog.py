@@ -9,10 +9,11 @@ Functions and classes for modeling RF analog blocks and impairments
 
 import numpy as np
 import matplotlib.pyplot as plt
-from rfdsppy import calc
+from rfdsppy import calc, digital_hw_algo as dighw
 import scipy.fft
 import math
 from typing import Literal
+from scipy import signal
 
 class AWGN:
     """
@@ -44,6 +45,24 @@ class AWGN:
             n = self.rng.normal(loc=0, scale=self.vrms, size=x.size)
 
         return x + n
+
+class DAC:
+
+    def __init__(self, R):
+        """
+        R = upsampling rate
+        
+        """
+
+        self.R = R
+        self.b_ = np.ones(R)
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        x = x.copy()
+        x = dighw.upsample(x, self.R)
+        x = signal.lfilter(self.b_, 1, x)
+
+        return x
 
 class FlickerNoise:
     ""
