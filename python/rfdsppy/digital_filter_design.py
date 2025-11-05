@@ -75,15 +75,6 @@ def firls_rate_change(updn: Literal["up", "down"], ntaps, obw, fs_in, R, passban
     print('\n\n')
     
     if en_plot:
-        # plt.figure()
-        # plt.plot(w, 20*np.log10(abs(h)))
-        # plt.title("digital_filter_design.firls_rate_change()", {'fontsize':40})
-        # plt.xlabel("Normalized Digital Frequency", {'fontsize':30})
-        # plt.ylabel("Magnitude Response (dB)", {'fontsize':30})
-        # plt.xticks(fontsize=20)
-        # plt.yticks(fontsize=20)
-        # plt.grid()
-
         fig, axs = plt.subplots(nrows=2, dpi=150)
         axs[0].plot(w, 20*np.log10(np.abs(h)))
         axs[1].plot(w, np.angle(h))
@@ -93,3 +84,50 @@ def firls_rate_change(updn: Literal["up", "down"], ntaps, obw, fs_in, R, passban
         axs[1].grid()
 
     return b
+
+def iir_bbf(wp, ws, gpass, gstop, **kwargs) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Generates IIR filter coefficients based on desired passband/stopband magnitude response
+
+    Parameters
+    ----------
+    wp: passband cutoff. This must be normalized to fs (which is 2 by default).
+    ws: stopband cutoff. This must be normalized to fs (which is 2 by default).
+    gpass: maximum passband loss (dB)
+    gstop: minimum stopband attenuation (dB)
+    kwargs
+        ftype: "butter", etc.
+        fs: sampling rate (by default, 2)
+    
+    """
+    
+    ftype = kwargs.get("ftype", "butter")
+    fs = kwargs.get("fs", 2)
+    b, a = signal.iirdesign(wp, ws, gpass, gstop, ftype=ftype, fs=fs)    
+
+    w, h = signal.freqz(b, a, fs=fs)
+
+    h_pb = 20*np.log10(np.abs(h[w <= wp]))
+    h_sb = -20*np.log10(np.abs(h[w >= ws]))
+    wc_pb_ripple = np.abs(h_pb).max() # dB
+    wc_sb_rej = h_sb.min() # dB
+
+    print("digital_filter_design.iir_bbf()")
+    print(f"Filter order = {a.size}")
+    print('Maximum passband loss (dB) = ' + str(round(wc_pb_ripple,3)))
+    print('Minimum stopband attenuation (dB) = ' + str(round(wc_sb_rej,1)))
+    print('\n\n')
+    
+    if kwargs.get("en_plot", False):
+        fig, axs = plt.subplots(nrows=2, dpi=100, figsize=(6, 8))
+        axs[0].plot(w, 20*np.log10(np.abs(h)))
+        axs[1].plot(w, np.angle(h))
+        axs[0].set_title("Magnitude Response (dB)")
+        axs[1].set_title("Phase Response (rad)")
+        axs[0].grid()
+        axs[1].grid()
+
+    return (b, a)
+
+def fir_equalizer():
+    pass
