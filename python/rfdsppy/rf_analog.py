@@ -46,24 +46,6 @@ class AWGN:
 
         return x + n
 
-class DAC:
-
-    def __init__(self, R):
-        """
-        R = upsampling rate
-        
-        """
-
-        self.R = R
-        self.b_ = np.ones(R)
-    
-    def transform(self, x: np.ndarray) -> np.ndarray:
-        x = x.copy()
-        x = dighw.upsample(x, self.R)
-        x = signal.lfilter(self.b_, 1, x)
-
-        return x
-
 class FlickerNoise:
     ""
 
@@ -120,6 +102,49 @@ class PhaseNoise:
         self.Ff_ = np.linspace(0, self.fs, F.size)
 
         return x*np.exp(1j*theta[:x.size])
+
+class DAC:
+    def __init__(self, R: float | int):
+        """
+        R = upsampling rate; integer
+        
+        """
+
+        self.R = R
+        self.b_ = np.ones(R)
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        x = x.copy()
+        x = dighw.upsample(x, self.R)
+        x = signal.lfilter(self.b_, 1, x)
+
+        return x
+    
+class BBF:
+    def __init__(self, b: np.ndarray, a: np.ndarray):
+        if (b.ndim == 1) and (a.ndim == 1):
+            self.b = b.copy()
+            self.a = a.copy()
+            self.sep_i_q_ = False
+        elif (b.ndim == 2) and (a.ndim == 2):
+            # Assume b is 2 x M
+            # Assume a is 2 x N
+            # First row is I BBF, second row is Q BBF
+            assert b.shape[0] == 2
+            assert a.shape[0] == 2
+            self.b_i = b[0, :].copy()
+            self.a_i = a[0, :].copy()
+            self.b_q = b[1, :].copy()
+            self.a_q = a[1, :].copy()
+            self.sep_i_q_ = True
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        if self.sep_i_q_:
+            I = signal.lfilter(self.b_i, self.a_i, x.real)
+            Q = signal.lfilter(self.b_q, self.a_q, x.imag)
+            return I + 1j*Q
+        else:
+            return signal.lfilter(self.b, self.a, x)
 
 class IQUpconverter:
     """

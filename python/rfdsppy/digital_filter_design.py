@@ -128,3 +128,6 @@ def iir_bbf(wp, ws, gpass, gstop, **kwargs) -> tuple[np.ndarray, np.ndarray]:
         axs[1].grid()
 
     return (b, a)
+
+def fir_equalizer():
+    pass
