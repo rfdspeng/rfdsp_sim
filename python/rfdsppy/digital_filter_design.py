@@ -75,7 +75,7 @@ def firls_rate_change(updn: Literal["up", "down"], ntaps, obw, fs_in, R, passban
     print('\n\n')
     
     if en_plot:
-        fig, axs = plt.subplots(nrows=2, dpi=150)
+        fig, axs = plt.subplots(nrows=2, dpi=100, figsize=(8, 6))
         axs[0].plot(w, 20*np.log10(np.abs(h)))
         axs[1].plot(w, np.angle(h))
         axs[0].set_title("Magnitude Response (dB)")

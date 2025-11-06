@@ -10,6 +10,7 @@ and operations
 
 import numpy as np
 from typing import Literal
+import math
 
 def round(x: float | int | np.ndarray):
     pass
