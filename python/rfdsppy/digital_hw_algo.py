@@ -124,14 +124,20 @@ class PolyphaseDownsampler:
     def transform(self, x: np.ndarray) -> np.ndarray:
         if self.sim_type == "vectorized":
             if self.decomp_type == "conventional":
-                y = np.zeros((self.R_, math.ceil(x.size/self.R_)))
+                y = np.zeros((self.R_, math.ceil(x.size/self.R_)), dtype="complex")
                 for r in range(self.R_):
                     x_br = downsample(x[r:], self.R_)
                     y_br = signal.lfilter(self.b[r, :], 1, x_br)
-                    y[r, :y_br.size] = y_br
+
+                    # y[r, :y_br.size] = y_br
+
+                    if r > 0:
+                        y[r, 1:y_br.size+1] = y_br[:y.shape[1]-1]
+                    elif r == 0:
+                        y[r, :y_br.size] = y_br
 
             elif self.decomp_type == "symmetric":
-                y = np.zeros((self.R_, math.ceil(x.size/self.R_)))
+                y = np.zeros((self.R_, math.ceil(x.size/self.R_)), dtype="complex")
                 for r in self.r_symm_:
                     x_br = downsample(x[r:], self.R_)
                     y_br = signal.lfilter(self.b[r, :], 1, x_br)
