@@ -12,12 +12,6 @@ import numpy as np
 from typing import Literal
 import math
 
-def round(x: float | int | np.ndarray):
-    pass
-
-def sat(x: float | int | np.ndarray):
-    pass
-
 class RoundSat:
     def __init__(self):
         pass
@@ -52,6 +46,59 @@ def downsample(x: np.ndarray, M: int | float) -> np.ndarray:
     assert x.ndim == 1, "Input vector should be 1-dimensional"
 
     return x[::M].copy()
+
+def polyphase_decomposition(b, R, mode: Literal["conventional", "symmetric"]="conventional"):
+    """
+    Decompose prototype filter b into R branches.
+    "conventional": conventional decomposition
+    "symmetric": make all branches symmetric or antisymmetric. See "Restoring Coefficient Symmetry in Polyphase Implementation of Linear-Phase FIR Filters".
+    
+    Assume even-order filter (b is odd).
+    """
+
+    assert b.size % 2 == 1, "Please provide an even-order filter"
+    b = b.copy().astype("float")
+
+    if mode == "conventional":
+        branch_len = math.ceil(b.size/R)
+        b_pp = np.zeros((R, branch_len))
+        b = np.concatenate((b, np.zeros(b_pp.size-len(b))))
+        for r in range(R):
+            b_pp[r, :] = b[r::R]
+
+    elif mode == "symmetric":
+        N0 = (b.size-1)/2
+        p = math.ceil(N0/R)
+        N = p*R
+        b = np.concatenate((np.zeros(round(N-N0)), b, np.zeros(round(N-N0))))
+
+        # Conventional polyphase decomposition
+        b_pp = np.zeros((R, 2*p+1), dtype="float")
+        b_pp[0, :] = b[::R]
+        for r in range(1, R):
+            b_pp[r, :-1] = b[r::R]
+        
+        if R == 2:
+            return b_pp
+
+        # Transformation to symmetric polyphase branches
+        b_pp_sym = np.zeros((R, 2*p+1), dtype="float")
+        b_pp_sym[0, :] = b_pp[0, :]
+        if R % 2 == 0: # R is even and > 2
+            b_pp_sym[round(R/2), :] = b_pp[round(R/2), :]
+            r_tr_max = round(R/2-1)
+
+        else: # R is odd
+            r_tr_max = math.floor(R/2)
+        
+        # r_tr_max is the index of the last "first-half" branch to transform
+        for r in range(1, r_tr_max+1):
+            b_pp_sym[r, :] = 1/2*(b_pp[r, :] + b_pp[R-r, :])
+            b_pp_sym[R-r, :] = 1/2*(b_pp[r, :] - b_pp[R-r, :])
+        
+        return b_pp_sym
+    
+    return b_pp
 
 def polyphase_downsampler(x: np.ndarray, b, R, frac_bits: int | float | bool = False):
     """
