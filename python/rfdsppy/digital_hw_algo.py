@@ -11,6 +11,7 @@ and operations
 import numpy as np
 from typing import Literal
 import math
+from scipy import signal
 
 class RoundSat:
     def __init__(self):
@@ -99,6 +100,57 @@ def polyphase_decomposition(b, R, mode: Literal["conventional", "symmetric"]="co
         return b_pp_sym
     
     return b_pp
+
+class PolyphaseDownsampler:
+    def __init__(self, b, decomp_type: Literal["conventional", "symmetric"]="conventional", sim_type: Literal["vectorized", "hardware"]="vectorized"):
+        """
+        b = polyphase coefficients. R x 2p+1. R = rate change. 2p+1 = number of coefficients in branch 0. All other branches have 2p.
+        
+        """
+        self.b = b
+        self.decomp_type = decomp_type
+        self.sim_type = sim_type
+
+        self.R_ = b.shape[0]
+        if self.decomp_type == "symmetric":
+            self.r_symm_ = [0]
+            if self.R_ % 2 == 0:
+                self.r_symm_.append(round(self.R_/2))
+                self.r_tr_max_ = round(self.R_/2-1)
+            else:
+                self.r_tr_max_ = math.floor(self.R_/2)
+
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        if self.sim_type == "vectorized":
+            if self.decomp_type == "conventional":
+                y = np.zeros((self.R_, math.ceil(x.size/self.R_)))
+                for r in range(self.R_):
+                    x_br = downsample(x[r:], self.R_)
+                    y_br = signal.lfilter(self.b[r, :], 1, x_br)
+                    y[r, :y_br.size] = y_br
+
+            elif self.decomp_type == "symmetric":
+                y = np.zeros((self.R_, math.ceil(x.size/self.R_)))
+                for r in self.r_symm_:
+                    x_br = downsample(x[r:], self.R_)
+                    y_br = signal.lfilter(self.b[r, :], 1, x_br)
+                    y[r, :y_br.size] = y_br
+
+                for r in range(1, self.r_tr_max_+1):
+                    x_br = downsample(x[r:], self.R_)
+                    y_br = signal.lfilter(self.b[r, :] + self.b[self.R_-r, :], 1, x_br)
+                    y[r, :y_br.size] = y_br
+                    x_br = downsample(x[self.R_-r:], self.R_)
+                    y_br = signal.lfilter(self.b[r, :] - self.b[self.R_-r, :], 1, x_br)
+                    y[self.R_-r, :y_br.size] = y_br
+                
+            y = y.sum(axis=0).squeeze()
+
+        elif self.sim_type == "hardware":
+            pass
+
+        return y
 
 def polyphase_downsampler(x: np.ndarray, b, R, frac_bits: int | float | bool = False):
     """
