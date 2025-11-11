@@ -75,7 +75,7 @@ def firls_rate_change(updn: Literal["up", "down"], ntaps, obw, fs_in, R, passban
     print('\n\n')
     
     if en_plot:
-        fig, axs = plt.subplots(nrows=2, dpi=150)
+        fig, axs = plt.subplots(nrows=2, dpi=100, figsize=(8, 6))
         axs[0].plot(w, 20*np.log10(np.abs(h)))
         axs[1].plot(w, np.angle(h))
         axs[0].set_title("Magnitude Response (dB)")
@@ -129,5 +129,43 @@ def iir_bbf(wp, ws, gpass, gstop, **kwargs) -> tuple[np.ndarray, np.ndarray]:
 
     return (b, a)
 
-def fir_equalizer():
-    pass
+def fir_equalizer(H: np.ndarray, omega: np.ndarray, L, W: np.ndarray | None=None, en_plot=False):
+    """
+    H: desired complex frequency response
+    omega: DT frequencies
+    L: filter length
+    W: weights
+    
+    """
+    
+    H = H.reshape((H.size, 1))
+    if W is not None:
+        W = W.reshape((W.size, 1))
+        H = H*W
+
+    Omega = [np.exp(1j*omega_i*np.arange(L, dtype="float")).reshape((L, 1)) for omega_i in omega]
+    Omega = np.array(Omega).transpose()
+
+    h = linalg.pinv(Omega.transpose().conjugate @ Omega) @ Omega.transpose().conjugate @ H
+
+    h = h.squeeze()
+
+    if en_plot:
+        w, H_fitted = signal.freqz(h, worN=omega)
+
+        fig, axs = plt.subplots(nrows=2, dpi=100, figsize=(6, 8))
+        axs[0].plot(omega, 20*np.log10(np.abs(H)), label="Desired")
+        axs[0].plot(w, 20*np.log10(np.abs(H_fitted)), label="Fitted")
+        axs[1].plot(omega, np.angle(H)*180/np.pi, label="Desired")
+        axs[1].plot(w, np.angle(H_fitted)*180/np.pi, label="Fitted")
+        axs[0].set_title("Magnitude Response (dB)")
+        axs[1].set_title("Phase Response (Degrees)")
+        axs[0].grid()
+        axs[1].grid()
+        # axs[0].set_xlim(left=0, right=wp*3)
+        # axs[1].set_xlim(left=0, right=wp*3)
+        # # axs[0].set_ylim(bottom=-10, top=0)
+        # axs[0].vlines([wp], ymin=ep.min(), ymax=ep.max(), colors='r')
+        # axs[1].vlines([wp], ymin=theta_deg.min(), ymax=theta_deg.max(), colors='r')
+
+    return h
