@@ -27,3 +27,18 @@ def est_tone_amp_phase(x: np.ndarray, fs, f0):
     phi = np.angle(c)
 
     return (A, phi)
+
+def est_single_tap_channel(x: np.ndarray, y: np.ndarray):
+    """
+    Estimate a memoryless gain/phase response (like a flat fading channel)
+
+    x: reference signal
+    y: received signal
+
+    """
+
+    assert x.size == y.size, "vector lengths should match"
+
+    # Project y onto x
+    return np.vdot(x, y)/np.vdot(x, x)
+
