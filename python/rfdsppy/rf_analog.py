@@ -280,11 +280,12 @@ class RappSaleh:
     def __init__(self, cfg: dict | None = None):
         cfg = cfg if cfg else {}
 
-        self.g = cfg.get("g", 10**(30/20))
+        # If cfg isn't provided, assume peak input is 1
+        self.g = cfg.get("g", 1)
         self.s = 2*cfg.get("smoothness", 2)
-        self.osat = cfg.get("osat", 25)
-        self.a = cfg.get("a", 0.5)
-        self.b = cfg.get("b", 10)
+        self.osat = cfg.get("osat", 8.5)
+        self.a = cfg.get("a", 1)
+        self.b = cfg.get("b", 30)
     
     def transform(self, x: np.ndarray) -> np.ndarray:
         """
