@@ -11,6 +11,8 @@ from typing import Literal
 import numpy as np
 import math
 
+# https://pysdr.org/content/pulse_shaping.html
+
 def dsss_wavgen(nsym, bw, modorder, osr=1, seed=None):
     """
     Direct spread-sequence waveform generator
