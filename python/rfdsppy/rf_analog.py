@@ -96,12 +96,32 @@ class PhaseNoise:
         # theta = theta*4343*np.sqrt(1000)
 
         self.theta_ = theta
-        self.P_ = P
-        self.Pf_ = f
+        self.P_ = P # linear, relative to carrier
+        self.Pf_ = f # MHz
         self.F_ = F
         self.Ff_ = np.linspace(0, self.fs, F.size)
+        self.fbin_ = fbin # Hz
 
         return x*np.exp(1j*theta[:x.size])
+    
+    def plot(self):
+        fig, ax = plt.subplots(dpi=100)
+
+        ax.semilogx(self.Pf_, 10*np.log10(self.P_))
+        ax.set_xlabel("Frequency (MHz)")
+        ax.set_ylabel("Phase Noise (dBc/Hz)")
+        ax.set_title(f"L0={self.l0} dBc/Hz, Lfloor={self.lfloor} dBc/Hz, Bpll={self.bpll} MHz, fcorner={self.fcorner} MHz")
+        ax.grid()
+        return (fig, ax)
+
+
+    def calculate_ipn(self, fmin=None, fmax=None):
+        if fmin is None:
+            fmin = self.Pf_.min()
+        if fmax is None:
+            fmax = self.Pf_.max()
+
+        return 10*np.log10((self.P_[np.logical_and(self.Pf_ >= fmin, self.Pf_ <= fmax)]*self.fbin_).sum())
 
 class DAC:
     def __init__(self, R: float | int):

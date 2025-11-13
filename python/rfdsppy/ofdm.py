@@ -13,6 +13,8 @@ from scipy import fft
 import matplotlib.pyplot as plt
 from rfdsppy import calc
 from rfdsppy.digital_modulation import modulation_mapper
+from rfdsppy import rf_estimation as rf_est
+from typing import Literal
 
 def ofdm_wavgen(nsym: int=14, bw: int=10, scs: int=15, 
                 num_sc: int | None=None, 
@@ -272,7 +274,8 @@ class OFDMWavGen:
 
         return (x, x_standard)
     
-    def calculate_evm(self, x: np.ndarray, y: np.ndarray, en_fd_eq=False, en_plot=False, title="Constellation"):
+    def calculate_evm(self, x: np.ndarray, y: np.ndarray, en_flat_eq: Literal["gain", "both", False]="gain", \
+                      en_fd_eq: bool=False, **kwargs):
         """
         Calculates EVM (%) for OFDM waveform. Signals must be at baseband sampling rate and time-aligned.
 
@@ -280,9 +283,11 @@ class OFDMWavGen:
         ----------
         x: reference
         y: signal under test
-        en_fd_eq: enable FD equalization
-        en_plot
-        title
+        en_flat_eq: enable a single-tap equalizer for the entire signal duration. Equalize only gain, gain+phase, or none.
+        en_fd_eq: enable frequency-domain equalization - this estimates the gain and phase response of every subcarrier and equalizes the response.
+        kwargs
+            en_plot
+            title
 
         Returns
         -------
@@ -292,11 +297,23 @@ class OFDMWavGen:
         If you assume all symbols are the same length, then you can also vectorize the symbol slicing
         And if you assume no dynamic power change, you can also vectorize the single-tap TD equalizer
 
-        The standard FD equalizer and my equalizer are the same - how?
 
         """
+
+        en_plot = kwargs.get("en_plot", False)
+        title = kwargs.get("title", "Constellation")
+
+        x = x.copy()
+        y = y.copy()
+        if en_flat_eq != False:
+            g_est = rf_est.est_single_tap_channel(x, y)
+            if en_flat_eq == "gain":
+                y = y/np.abs(g_est)
+            elif en_flat_eq == "both":
+                y = y/g_est
         
-        # Convert from TD symbols to FD subcarriers
+        # Take the FFT of each symbol to recover the modulated subcarriers
+        # The output of this for loop is a matrix. Columns are subcarriers, rows are symbols.
         fft_start = round(self.ncp/2)
         tone_idx = self.tone_idx == 2 # allocated tones only
         n = min(len(x), len(y))-1-self.sym_len # last possible start index (sdx)
@@ -304,11 +321,7 @@ class OFDMWavGen:
             sym_x = x[sdx:sdx+self.sym_len]
             sym_y = y[sdx:sdx+self.sym_len]
             
-            # Single-tap TD equalizer: Project x onto y
-            # y'x / y'y * y
-            sym_y = np.vdot(sym_y, sym_x)/np.vdot(sym_y, sym_y)*sym_y
-            
-            # Remove CP
+            # Remove cyclic prefix
             sym_x = sym_x[fft_start:fft_start+self.nfft]
             sym_y = sym_y[fft_start:fft_start+self.nfft]
             nshift = self.ncp-fft_start
@@ -320,34 +333,31 @@ class OFDMWavGen:
             tones_y = fft.fft(sym_y)
             tones_x = tones_x[tone_idx]
             tones_y = tones_y[tone_idx]
-            tones_x = tones_x.reshape(1,len(tones_x))
-            tones_y = tones_y.reshape(1,len(tones_y))
+            tones_x = tones_x.reshape(1, tones_x.size)
+            tones_y = tones_y.reshape(1, tones_y.size)
             if sdx == 0:
                 tones_xx = tones_x # nsym x ntone (occupied tones only)
                 tones_yy = tones_y
             else:
-                tones_xx = np.concatenate((tones_xx,tones_x))
-                tones_yy = np.concatenate((tones_yy,tones_y))
+                tones_xx = np.concatenate((tones_xx, tones_x))
+                tones_yy = np.concatenate((tones_yy, tones_y))
         
-        # FD equalizer
-        fd_eqs = np.ones(tones_x.size) + 1j*np.zeros(tones_x.size)
+        # Frequency-domain equalizer
+        fd_eqs = np.ones(tones_x.size, dtype="complex") # Right now, this doesn't go anywhere, but it's essentially spectral flatness
         if en_fd_eq:
-            for edx in range(0, len(fd_eqs)):
+            # Loop over subcarriers and equalize
+            for edx in range(0, fd_eqs.size):
                 xx = tones_xx[:, edx]; yy = tones_yy[:, edx]
                 
                 # Standard definition
                 fd_eq = np.vdot(xx, xx)/np.vdot(xx, yy)
+                # fd_eq = np.vdot(yy,xx)/np.vdot(yy,yy) # This also works
                 tones_yy[:, edx] = fd_eq*yy
                 fd_eqs[edx] = fd_eq
                 
-                # My definition - this also works
-                # Project x onto y
-                # y'x / y'y * y
-                'fd_eq = np.vdot(yy,xx)/np.vdot(yy,yy)'
-                
         # Inverse transform precoding
         if self.en_tprecode:
-            for sdx in range(0, tones_xx.shape[0]):
+            for sdx in range(tones_xx.shape[0]):
                 tones_xx[sdx, :] = fft.ifft(tones_xx[sdx, :])
                 tones_yy[sdx, :] = fft.ifft(tones_yy[sdx, :])
         

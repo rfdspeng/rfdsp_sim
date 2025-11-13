@@ -37,8 +37,9 @@ def est_single_tap_channel(x: np.ndarray, y: np.ndarray):
 
     """
 
-    assert x.size == y.size, "vector lengths should match"
-
+    L = min(x.size, y.size)
     # Project y onto x
-    return np.vdot(x, y)/np.vdot(x, x)
+    return np.vdot(x[:L], y[:L])/np.vdot(x[:L], x[:L])
 
+def est_delay(x: np.ndarray, y: np.ndarray):
+    pass
