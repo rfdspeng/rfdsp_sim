@@ -15,23 +15,21 @@ from scipy import signal
 from scipy import fft
 from typing import Literal
 
-class RxIQMC:
+class IQMC:
     """
-    class RxIQMC
-
-    Rx frequency-independent IQ mismatch compensation
+    A general model for FID IQ mismatch compensation. Simply provide the coefficients for the signal and its image.
 
     """
     
-    def __init__(self, coeff_sig, coeff_img):
-        """
-        """
-
+    def __init__(self, coeff_sig: float, coeff_img: float):
         self.coeff_sig = coeff_sig
         self.coeff_img = coeff_img
+        self.coeff_ = np.array([coeff_sig, coeff_img]).reshape((2, 1))
         
     def transform(self, x: np.ndarray) -> np.ndarray:
-        return self.coeff_sig*x + self.coeff_img*x.conjugate()
+        # return self.coeff_sig*x + self.coeff_img*x.conjugate()
+        x_copy = x.copy().reshape((x.size, 1))
+        return (np.hstack((x_copy, x_copy.conjugate())) @ self.coeff_).reshape(x.shape)
 
 class NotchFilter:
     def __init__(self, w0, r, sim_type: Literal["vectorized", "hardware"]="vectorized", Nest: int | float | bool=False, bitwidth: int | float | bool = False):

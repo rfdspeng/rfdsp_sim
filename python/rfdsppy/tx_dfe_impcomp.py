@@ -12,8 +12,6 @@ from typing import Literal
 
 class TxIQMC:
     """
-    class TxIQMC
-
     Tx frequency-independent IQ mismatch compensation
 
     """
