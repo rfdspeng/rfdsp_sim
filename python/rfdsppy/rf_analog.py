@@ -178,8 +178,8 @@ class IQDownconverter:
         self.mode = mode
     
         if self.mode == "balanced":
-            self.coeff_sig_ = np.cos(theta/2) + ep/2*np.sin(theta/2)
-            self.coeff_img_ = ep/2*np.cos(theta/2) + np.sin(theta/2)
+            self.coeff_sig_ = np.cos(theta/2) - 1j*ep/2*np.sin(theta/2)
+            self.coeff_img_ = ep/2*np.cos(theta/2) + 1j*np.sin(theta/2)
         elif self.mode == "one-sided":
             pass
     
