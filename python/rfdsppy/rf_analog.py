@@ -166,6 +166,26 @@ class BBF:
         else:
             return signal.lfilter(self.b, self.a, x)
 
+class IQDownconverter:
+    def __init__(self, theta=0, ep=0, mode: Literal["balanced", "one-sided"]="balanced"):
+        """
+        theta = IQ phase mismatch in radians
+        ep = IQ gain mismatch (linear)
+
+        """
+        self.theta = theta
+        self.ep = ep
+        self.mode = mode
+    
+        if self.mode == "balanced":
+            self.coeff_sig_ = np.cos(theta/2) + ep/2*np.sin(theta/2)
+            self.coeff_img_ = ep/2*np.cos(theta/2) + np.sin(theta/2)
+        elif self.mode == "one-sided":
+            pass
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        return x*self.coeff_sig_ + x.conjugate()*self.coeff_img_
+
 class IQUpconverter:
     """
     class IQUpconverter
