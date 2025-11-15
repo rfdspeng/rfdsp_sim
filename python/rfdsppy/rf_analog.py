@@ -96,12 +96,32 @@ class PhaseNoise:
         # theta = theta*4343*np.sqrt(1000)
 
         self.theta_ = theta
-        self.P_ = P
-        self.Pf_ = f
+        self.P_ = P # linear, relative to carrier
+        self.Pf_ = f # MHz
         self.F_ = F
         self.Ff_ = np.linspace(0, self.fs, F.size)
+        self.fbin_ = fbin # Hz
 
         return x*np.exp(1j*theta[:x.size])
+    
+    def plot(self):
+        fig, ax = plt.subplots(dpi=100)
+
+        ax.semilogx(self.Pf_, 10*np.log10(self.P_))
+        ax.set_xlabel("Frequency (MHz)")
+        ax.set_ylabel("Phase Noise (dBc/Hz)")
+        ax.set_title(f"L0={self.l0} dBc/Hz, Lfloor={self.lfloor} dBc/Hz, Bpll={self.bpll} MHz, fcorner={self.fcorner} MHz")
+        ax.grid()
+        return (fig, ax)
+
+
+    def calculate_ipn(self, fmin=None, fmax=None):
+        if fmin is None:
+            fmin = self.Pf_.min()
+        if fmax is None:
+            fmax = self.Pf_.max()
+
+        return 10*np.log10((self.P_[np.logical_and(self.Pf_ >= fmin, self.Pf_ <= fmax)]*self.fbin_).sum())
 
 class DAC:
     def __init__(self, R: float | int):
@@ -145,6 +165,26 @@ class BBF:
             return I + 1j*Q
         else:
             return signal.lfilter(self.b, self.a, x)
+
+class IQDownconverter:
+    def __init__(self, theta=0, ep=0, mode: Literal["balanced", "one-sided"]="balanced"):
+        """
+        theta = IQ phase mismatch in radians
+        ep = IQ gain mismatch (linear)
+
+        """
+        self.theta = theta
+        self.ep = ep
+        self.mode = mode
+    
+        if self.mode == "balanced":
+            self.coeff_sig_ = np.cos(theta/2) + ep/2*np.sin(theta/2)
+            self.coeff_img_ = ep/2*np.cos(theta/2) + np.sin(theta/2)
+        elif self.mode == "one-sided":
+            pass
+    
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        return x*self.coeff_sig_ + x.conjugate()*self.coeff_img_
 
 class IQUpconverter:
     """
@@ -260,11 +300,12 @@ class RappSaleh:
     def __init__(self, cfg: dict | None = None):
         cfg = cfg if cfg else {}
 
-        self.g = cfg.get("g", 10**(30/20))
+        # If cfg isn't provided, assume peak input is 1
+        self.g = cfg.get("g", 1)
         self.s = 2*cfg.get("smoothness", 2)
-        self.osat = cfg.get("osat", 25)
-        self.a = cfg.get("a", 0.5)
-        self.b = cfg.get("b", 10)
+        self.osat = cfg.get("osat", 8.5)
+        self.a = cfg.get("a", 1)
+        self.b = cfg.get("b", 30)
     
     def transform(self, x: np.ndarray) -> np.ndarray:
         """

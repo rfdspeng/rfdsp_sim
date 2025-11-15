@@ -15,6 +15,24 @@ from scipy import signal
 from scipy import fft
 from typing import Literal
 
+class RxIQMC:
+    """
+    class RxIQMC
+
+    Rx frequency-independent IQ mismatch compensation
+
+    """
+    
+    def __init__(self, coeff_sig, coeff_img):
+        """
+        """
+
+        self.coeff_sig = coeff_sig
+        self.coeff_img = coeff_img
+        
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        return self.coeff_sig*x + self.coeff_img*x.conjugate()
+
 class NotchFilter:
     def __init__(self, w0, r, sim_type: Literal["vectorized", "hardware"]="vectorized", Nest: int | float | bool=False, bitwidth: int | float | bool = False):
         self.w0 = w0

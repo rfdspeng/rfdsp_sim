@@ -1,0 +1,45 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Nov 11 2025
+
+Functions and classes for modeling RF estimation algorithms (FW or HW)
+
+@author: Ryan Tsai
+"""
+
+import numpy as np
+
+def est_tone_amp_phase(x: np.ndarray, fs, f0):
+    """
+    Estimate amplitude and phase of a sinusoid
+
+    x: sinusoid (real or complex)
+    fs = sampling rate (MHz)
+    f0 = tone frequency (MHz)
+    
+    """
+
+    w0 = f0*2*np.pi/fs
+
+    c = (x * np.exp(-1j*w0*np.arange(x.size, dtype="float"))).sum()/x.size
+
+    A = np.abs(c)
+    phi = np.angle(c)
+
+    return (A, phi)
+
+def est_single_tap_channel(x: np.ndarray, y: np.ndarray):
+    """
+    Estimate a memoryless gain/phase response (like a flat fading channel)
+
+    x: reference signal
+    y: received signal
+
+    """
+
+    L = min(x.size, y.size)
+    # Project y onto x
+    return np.vdot(x[:L], y[:L])/np.vdot(x[:L], x[:L])
+
+def est_delay(x: np.ndarray, y: np.ndarray):
+    pass

@@ -10,8 +10,9 @@ Functions to generate tones
 import numpy as np
 from fractions import Fraction
 from rfdsppy import calc
+from typing import Literal
 
-def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int | float | None=None, power: int | float | None=None):
+def tonegen(fs: float, fc: float, cossin: Literal["cos", "sin", "exp"]="cos", theta0: float=0, nsamp: int | float | None=None, power: int | float | None=None):
     """
     Generates real or complex tone at fc with starting phase of theta0
     x = cos(wn + theta0) or sin(wn + theta0) or exp(j(wn + theta0))
@@ -22,7 +23,7 @@ def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int
     fs : sampling rate
     fc : tone frequency
     cossin : 'cos', 'sin', or 'exp'
-    theta0 : starting phase in degrees
+    theta0 : starting phase in radians
     power : power in a 50Ohm system (dBm)
 
     Returns
@@ -32,7 +33,7 @@ def tonegen(fs: float, fc: float, cossin: str='cos', theta0: float=0, nsamp: int
     """
     
     # Convert theta0 from degrees to radians
-    theta0 = theta0*np.pi/180
+    # theta0 = theta0*np.pi/180
 
     wc = 2*np.pi*fc/fs # convert from CT frequency to DT frequency (rad/sample)
 
